@@ -1,10 +1,10 @@
 <div class="min-h-screen bg-github-bg text-github-text font-sans selection:bg-github-primary/30">
   <div class="max-w-6xl mx-auto p-6 md:p-12">
     
-    <!-- Hero Header -->
+    <!-- Header -->
     <header class="flex items-center gap-5 mb-12">
-      <div class="w-12 h-12 bg-github-primary rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20 rotate-3">
-        <span class="text-white font-black text-2xl">CG</span>
+      <div class="w-12 h-12 bg-github-primary rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20 rotate-3 text-white font-black text-2xl">
+        CG
       </div>
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-white">CopyGit</h1>
@@ -12,38 +12,50 @@
       </div>
     </header>
 
-    <!-- Control Panel -->
+    <!-- Controls -->
     <section class="bg-github-card border border-github-border rounded-2xl p-8 mb-10 shadow-2xl">
       <div class="flex flex-col md:flex-row gap-6">
         <div class="flex-1">
           <label class="block text-[10px] font-bold text-github-hover mb-2 uppercase tracking-widest">GitHub Repository URL</label>
-          <input type="text" [(ngModel)]="repoUrl" placeholder="https://github.com/username/repository"
-            class="w-full bg-github-bg border border-github-border rounded-lg px-4 py-3 focus:border-github-primary focus:ring-1 focus:ring-github-primary outline-none transition-all text-sm text-white placeholder:text-github-border" />
+          <input type="text" [(ngModel)]="repoUrl" (input)="onUrlChange()" placeholder="https://github.com/username/repository"
+            class="w-full bg-github-bg border border-github-border rounded-lg px-4 py-3 focus:border-github-primary outline-none text-sm text-white transition-all shadow-inner" />
         </div>
-        <div class="w-full md:w-40">
-          <label class="block text-[10px] font-bold text-github-hover mb-2 uppercase tracking-widest">Branch</label>
-          <input type="text" [(ngModel)]="branchName"
-            class="w-full bg-github-bg border border-github-border rounded-lg px-4 py-3 focus:border-github-primary outline-none text-sm text-white" />
+        
+        <div class="w-full md:w-56">
+          <label class="block text-[10px] font-bold text-github-hover mb-2 uppercase tracking-widest">
+            {{ fetchingBranches ? 'Fetching Branches...' : 'Branch' }}
+          </label>
+          <div class="relative">
+            <select [(ngModel)]="branchName" [disabled]="branches.length === 0"
+              class="w-full bg-github-bg border border-github-border rounded-lg px-4 py-3 focus:border-github-primary outline-none text-sm text-white appearance-none cursor-pointer shadow-inner">
+              <option *ngIf="branches.length === 0" value="">Paste URL first...</option>
+              <option *ngFor="let b of branches" [value]="b">{{ b }}</option>
+            </select>
+            <div class="absolute inset-y-0 right-3 flex items-center pointer-events-none opacity-50">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+            </div>
+          </div>
         </div>
+
         <div class="flex items-end">
-          <button (click)="onAnalyze()" [disabled]="loading || !repoUrl"
-            class="bg-github-primary hover:bg-blue-600 disabled:opacity-30 text-white font-bold px-10 py-3 rounded-lg transition-all active:scale-95 shadow-lg shadow-blue-900/20">
+          <button (click)="onAnalyze()" [disabled]="loading || !repoUrl || !branchName"
+            class="bg-github-primary hover:bg-blue-600 disabled:opacity-30 text-white font-bold px-10 py-3 rounded-lg transition-all shadow-lg active:scale-95 h-[46px]">
             {{ loading ? 'Cloning...' : 'Analyze' }}
           </button>
         </div>
       </div>
     </section>
 
-    <!-- Work Area -->
+    <!-- Results Area -->
     <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
-      <!-- Left: File Tree -->
+      <!-- Tree View Column -->
       <div class="lg:col-span-4 bg-github-card border border-github-border rounded-2xl p-6 flex flex-col h-[650px]">
         <div class="flex justify-between items-center mb-6">
           <h3 class="text-xs font-bold uppercase text-github-hover tracking-tighter">Code Structure</h3>
           <div class="flex gap-3">
-            <button (click)="selectAll(true)" class="text-[11px] text-github-primary hover:text-blue-400 font-semibold">Select All</button>
-            <button (click)="selectAll(false)" class="text-[11px] text-github-hover hover:text-white font-semibold">Clear</button>
+            <button (click)="selectAll(true)" class="text-[11px] text-github-primary font-semibold hover:underline">Select All</button>
+            <button (click)="selectAll(false)" class="text-[11px] text-github-hover font-semibold hover:underline">Clear</button>
           </div>
         </div>
         
@@ -60,42 +72,24 @@
         </button>
       </div>
 
-      <!-- Right: Preview Area -->
+      <!-- Preview Column -->
       <div class="lg:col-span-8 flex flex-col gap-4">
         <div *ngIf="finalText" class="flex justify-between items-end mb-1">
-          <div class="flex items-center gap-3">
-            <span class="px-3 py-1 bg-github-primary/10 border border-github-primary/20 rounded-full text-[10px] font-bold text-github-primary tracking-widest">
-              {{ tokenCount | number }} TOKENS
-            </span>
-          </div>
-          <button (click)="downloadFile()" class="text-xs text-github-primary hover:text-blue-400 font-bold flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download Text
-          </button>
+          <span class="px-3 py-1 bg-github-primary/10 border border-github-primary/20 rounded-full text-[10px] font-bold text-github-primary tracking-widest uppercase">
+            {{ tokenCount | number }} Tokens
+          </span>
+          <button (click)="downloadFile()" class="text-xs text-github-primary font-bold hover:underline">Download .txt</button>
         </div>
 
         <div *ngIf="finalText" class="relative group h-full">
           <textarea readonly
-            class="w-full h-[650px] bg-github-bg border border-github-border rounded-2xl p-8 text-[13px] font-mono leading-relaxed text-github-text/80 outline-none ring-offset-github-bg focus:ring-1 ring-github-border transition-all"
+            class="w-full h-[650px] bg-github-bg border border-github-border rounded-2xl p-8 text-[13px] font-mono leading-relaxed text-github-text/80 outline-none"
             [value]="finalText"></textarea>
           
           <button (click)="copyToClipboard()" 
-            class="absolute top-6 right-6 bg-github-primary hover:bg-blue-600 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-2xl transition-all active:scale-90 flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3" />
-            </svg>
+            class="absolute top-6 right-6 bg-github-primary hover:bg-blue-600 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-2xl transition-all active:scale-95">
             {{ copyBtnText }}
           </button>
-        </div>
-
-        <!-- Empty State -->
-        <div *ngIf="!finalText && !loading" class="h-full border-2 border-dashed border-github-border rounded-2xl flex flex-col items-center justify-center text-github-hover opacity-50">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-          </svg>
-          <p class="font-medium">Select files and click "Generate Prompt" to begin.</p>
         </div>
       </div>
     </div>

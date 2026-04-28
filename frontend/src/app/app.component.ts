@@ -12,8 +12,10 @@ import { TreeNodeComponent } from './components/tree-node/tree-node.component';
 })
 export class AppComponent {
   repoUrl: string = '';
-  branchName: string = 'main';
+  branchName: string = '';
+  branches: string[] = [];
   loading: boolean = false;
+  fetchingBranches: boolean = false;
   repoStructure: RepoNode[] | null = null;
   repoPath: string = '';
   finalText: string = '';
@@ -22,8 +24,28 @@ export class AppComponent {
 
   constructor(private api: ApiService) {}
 
+  onUrlChange() {
+    if (this.repoUrl.includes('github.com/')) {
+      const parts = this.repoUrl.split('/');
+      // Ensure we have a valid-ish looking repo URL before calling
+      if (parts.length >= 5) {
+        this.fetchingBranches = true;
+        this.api.getRepoInfo(this.repoUrl).subscribe({
+          next: (res) => {
+            this.branches = res.branches;
+            this.branchName = res.default_branch;
+            this.fetchingBranches = false;
+          },
+          error: () => {
+            this.fetchingBranches = false;
+          }
+        });
+      }
+    }
+  }
+
   onAnalyze() {
-    if (!this.repoUrl) return;
+    if (!this.repoUrl || !this.branchName) return;
     this.loading = true;
     this.api.analyzeRepo(this.repoUrl, this.branchName).subscribe({
       next: (res) => {
@@ -41,18 +63,13 @@ export class AppComponent {
 
   selectAll(val: boolean) {
     if (this.repoStructure) {
-      this.repoStructure.forEach(node => {
-        node.selected = val;
-        this.toggleRecursive(node, val);
-      });
+      this.repoStructure.forEach(node => this.toggleRecursive(node, val));
     }
   }
 
   private toggleRecursive(node: RepoNode, val: boolean) {
     node.selected = val;
-    if (node.children) {
-      node.children.forEach(c => this.toggleRecursive(c, val));
-    }
+    if (node.children) node.children.forEach(c => this.toggleRecursive(c, val));
   }
 
   generateText() {
@@ -66,7 +83,6 @@ export class AppComponent {
         this.loading = false;
       },
       error: () => {
-        alert("Processing failed");
         this.loading = false;
       }
     });

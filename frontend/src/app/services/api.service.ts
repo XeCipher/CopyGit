@@ -19,6 +19,10 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
+  getRepoInfo(url: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/repo-info`, { url });
+  }
+
   analyzeRepo(url: string, branch: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/analyze`, { url, branch });
   }
