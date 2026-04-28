@@ -40,18 +40,19 @@ def parse_github_url(url):
 def get_auth_headers(user_token=None):
     headers = {
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'CopyGit/1.0'
+        'User-Agent': 'CopyGit/1.0',
+        'X-GitHub-Api-Version': '2022-11-28'
     }
     
     # Priority 1: User's token from the UI (for their private repos)
     if user_token and user_token.strip():
-        headers['Authorization'] = f'token {user_token.strip()}'
+        headers['Authorization'] = f'Bearer {user_token.strip()}'
     
     # Priority 2: Your scope-less backend token (to bump limits for everyone)
     else:
         backend_token = os.environ.get('GITHUB_BACKEND_TOKEN')
         if backend_token:
-            headers['Authorization'] = f'token {backend_token}'
+            headers['Authorization'] = f'Bearer {backend_token.strip()}'
             
     return headers
 
