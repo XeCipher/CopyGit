@@ -2,8 +2,342 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────────────
+   THEME VARIABLES
+   ────────────────────────────────────────────── */
+:root {
+  --bg:             #f5f5f0;
+  --surface:        #ffffff;
+  --card:           #ededea;
+  --border:         #d8d8d0;
+  --border-subtle:  #e8e8e4;
+  --text:           #18181a;
+  --text-secondary: #48484e;
+  --muted:          #888890;
+  --accent:         #6d59f0;
+  --accent-hover:   #5847d4;
+  --accent-dim:     rgba(109, 89, 240, 0.12);
+  --accent-border:  rgba(109, 89, 240, 0.25);
+  --success:        #16a34a;
+  --success-dim:    rgba(22, 163, 74, 0.1);
+  --error:          #dc2626;
+  --error-dim:      rgba(220, 38, 38, 0.1);
+  --warning:        #d97706;
+  --warning-dim:    rgba(217, 119, 6, 0.1);
+  --warning-border: rgba(217, 119, 6, 0.25);
+  --shadow:         0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-lg:      0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  --radius:         14px;
+}
+
+.dark {
+  --bg:             #0a0a10;
+  --surface:        #111119;
+  --card:           #16161f;
+  --border:         #24242e;
+  --border-subtle:  #1e1e28;
+  --text:           #e8e8f0;
+  --text-secondary: #a8a8b8;
+  --muted:          #606070;
+  --accent:         #8b6ef5;
+  --accent-hover:   #a78bf7;
+  --accent-dim:     rgba(139, 110, 245, 0.12);
+  --accent-border:  rgba(139, 110, 245, 0.25);
+  --success:        #22c55e;
+  --success-dim:    rgba(34, 197, 94, 0.1);
+  --error:          #f87171;
+  --error-dim:      rgba(248, 113, 113, 0.1);
+  --warning:        #fbbf24;
+  --warning-dim:    rgba(251, 191, 36, 0.1);
+  --warning-border: rgba(251, 191, 36, 0.25);
+  --shadow:         0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-lg:      0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ──────────────────────────────────────────────
+   BASE STYLES
+   ────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  @apply bg-github-bg text-github-text;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: 'Sora', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Transition background/border/color for theme switching */
+body, body * {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
+}
+
+/* But NOT transition on transforms/opacity for smoother animations */
+button, a {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, transform 0.1s ease !important;
+}
+
+/* ──────────────────────────────────────────────
+   SCROLLBARS
+   ────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* ──────────────────────────────────────────────
+   SELECTION
+   ────────────────────────────────────────────── */
+::selection {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+/* ──────────────────────────────────────────────
+   TYPOGRAPHY UTILITIES
+   ────────────────────────────────────────────── */
+@layer components {
+  .text-label {
+    @apply text-[10px] font-semibold tracking-widest uppercase;
+    color: var(--muted);
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  /* ── INPUT ── */
+  .cg-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font-size: 0.875rem;
+    font-family: 'Sora', system-ui, sans-serif;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+  }
+  .cg-input::placeholder {
+    color: var(--muted);
+  }
+  .cg-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  /* ── BUTTON PRIMARY ── */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.4rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: 'Sora', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--accent-dim);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ── BUTTON GHOST ── */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    font-family: 'Sora', sans-serif;
+    cursor: pointer;
+  }
+  .btn-ghost:hover {
+    background: var(--card);
+    border-color: var(--border);
+    color: var(--text);
+  }
+
+  /* ── BADGE ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+
+  /* ── NOISE OVERLAY (dark mode ambiance) ── */
+  .noise-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    opacity: 0.4;
+  }
+}
+
+/* ──────────────────────────────────────────────
+   CHECKBOX CUSTOM STYLE
+   ────────────────────────────────────────────── */
+input[type="checkbox"].cg-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s !important;
+}
+input[type="checkbox"].cg-check:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+input[type="checkbox"].cg-check:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 3.5px;
+  width: 5px;
+  height: 8px;
+  border: 2px solid white;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+input[type="checkbox"].cg-check:indeterminate {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+input[type="checkbox"].cg-check:indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 2px;
+  width: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ──────────────────────────────────────────────
+   LOADING SPINNER
+   ────────────────────────────────────────────── */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ──────────────────────────────────────────────
+   TREE NODE HOVER FIX
+   ────────────────────────────────────────────── */
+.tree-row:hover {
+  background: var(--card);
+  border-radius: 6px;
+}
+
+/* ──────────────────────────────────────────────
+   MODAL BACKDROP
+   ────────────────────────────────────────────── */
+.modal-backdrop {
+  animation: fadeIn 0.2s ease-out both;
+}
+.modal-panel {
+  animation: slideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ──────────────────────────────────────────────
+   SELECT DROPDOWN
+   ────────────────────────────────────────────── */
+select.cg-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 2.5rem 0.65rem 1rem;
+  font-size: 0.875rem;
+  font-family: 'Sora', sans-serif;
+  font-weight: 500;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+}
+select.cg-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
