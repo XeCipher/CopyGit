@@ -27,7 +27,7 @@ Paste a GitHub repo URL, select the files you need, and get a perfectly structur
 
 ### Private Repository Access (Token Modal)
 
-<img src="assets/screenshots/token-modal.png" width="480">
+<img src="assets/screenshots/token-modal.png" width="960">
 
 ---
 
