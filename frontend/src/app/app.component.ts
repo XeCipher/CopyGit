@@ -52,9 +52,9 @@ export class AppComponent implements OnInit {
   copied = false;
 
   tokenSteps = [
-    'Go to GitHub Settings → Developer settings → Personal access tokens',
-    'Generate a new token with <strong>repo</strong> scope',
-    'Copy and paste it here'
+    'Go to GitHub Settings → Developer settings → <strong>Personal access tokens</strong> → <strong>Fine-grained tokens</strong>',
+    'Set Repository access to <strong>All repositories</strong> and <strong>Contents</strong> permission to Read-only',
+    'Generate the token, copy, and paste it here'
   ];
 
   constructor(
