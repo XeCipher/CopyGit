@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, resources={r"/api/*": {"origins": "https://copygit.vercel.app"}})
 
 IGNORE_LIST = {
     '.git', '.github', 'node_modules', 'venv', '__pycache__', '.next',
@@ -37,13 +37,22 @@ def parse_github_url(url):
         return match.group(1), match.group(2)
     return None, None
 
-def get_auth_headers(token=None):
+def get_auth_headers(user_token=None):
     headers = {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'CopyGit/1.0'
     }
-    if token and token.strip():
-        headers['Authorization'] = f'token {token.strip()}'
+    
+    # Priority 1: User's token from the UI (for their private repos)
+    if user_token and user_token.strip():
+        headers['Authorization'] = f'token {user_token.strip()}'
+    
+    # Priority 2: Your scope-less backend token (to bump limits for everyone)
+    else:
+        backend_token = os.environ.get('GITHUB_BACKEND_TOKEN')
+        if backend_token:
+            headers['Authorization'] = f'token {backend_token}'
+            
     return headers
 
 @app.route('/api/repo-info', methods=['POST'])
