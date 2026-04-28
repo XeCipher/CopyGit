@@ -289,6 +289,12 @@ It is formatted for use as AI context (LLM prompt input).
     except Exception as e:
         logger.error(f"Process failed: {str(e)}")
         return jsonify({"error": str(e), "code": "PROCESS_FAILED"}), 500
+    finally:
+        # This block will run ALWAYS, whether the `try` succeeds or fails.
+        # This is where we clean up the temporary folder.
+        if repo_path and os.path.exists(repo_path):
+            logger.info(f"Cleaning up temporary directory: {repo_path}")
+            shutil.rmtree(repo_path, ignore_errors=True)
 
 
 @app.route('/ping', methods=['GET'])
