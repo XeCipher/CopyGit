@@ -176,7 +176,7 @@ The development environment points to `http://localhost:5000/api`. The productio
 | `POST` | `/api/process` | Read selected files and return the formatted bundle |
 | `GET` | `/ping` | Health check |
 
-The temporary clone directory is deleted automatically after `/api/process` completes, whether the request succeeds or fails.
+Cloned repositories are stored temporarily on the server and deleted automatically after 15 minutes of inactivity.
 
 ---
 
@@ -184,11 +184,11 @@ The temporary clone directory is deleted automatically after `/api/process` comp
 
 CopyGit supports private GitHub repositories via a Personal Access Token.
 
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
-2. Set Repository access to **All repositories** and **Contents** permission to **Read-only**
-3. Generate the token, copy it, and paste it into CopyGit using the **Token** button
+1. Open [GitHub Token Settings](https://github.com/settings/personal-access-tokens/new) to create a new **Fine-grained token**.
+2. Set *Repository access* to **All repositories**. Then, under *Repository permissions*, set **Contents** to **Read-only**.
+3. Click **Generate token** at the bottom, then copy and paste it into the CopyGit Token modal.
 
-Your token is stored only in your browser's local storage. It is never sent to or stored on CopyGit's servers. It is passed directly from your browser to the GitHub API for authentication.
+Your token is stored only in your browser's local storage and is sent directly to GitHub's API. It is never stored on our servers.
 
 ---
 
