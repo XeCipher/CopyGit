@@ -4,6 +4,7 @@ import tempfile
 import logging
 import requests
 import re
+import time
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -14,6 +15,25 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "https://copygit.vercel.app"}})
+
+SESSION_TIMEOUT_MINUTES = 15
+BASE_TEMP_DIR = os.path.join(tempfile.gettempdir(), 'copygit_sessions')
+os.makedirs(BASE_TEMP_DIR, exist_ok=True)
+
+def cleanup_old_sessions():
+    """Sweeps the base temp directory and deletes repos older than the timeout."""
+    try:
+        now = time.time()
+        for folder_name in os.listdir(BASE_TEMP_DIR):
+            folder_path = os.path.join(BASE_TEMP_DIR, folder_name)
+            if os.path.isdir(folder_path):
+                # Check how old the folder is
+                last_modified = os.path.getmtime(folder_path)
+                if (now - last_modified) > (SESSION_TIMEOUT_MINUTES * 60):
+                    logger.info(f"Session expired: Deleting {folder_path}")
+                    shutil.rmtree(folder_path, ignore_errors=True)
+    except Exception as e:
+        logger.error(f"Cleanup failed: {e}")
 
 IGNORE_LIST = {
     '.git', '.github', 'node_modules', 'venv', '__pycache__', '.next',
@@ -76,10 +96,12 @@ def get_repo_info():
         elif repo_resp.status_code == 403:
             rate_limit = repo_resp.headers.get('X-RateLimit-Remaining', '?')
             if rate_limit == '0':
-                return jsonify({"error": "GitHub API rate limit exceeded. Add a token to increase limits.", "code": "RATE_LIMITED"}), 429
-            return jsonify({"error": "Access forbidden. Your token may lack 'repo' scope.", "code": "FORBIDDEN"}), 403
+                return jsonify({"error": "GitHub API rate limit exceeded.", "code": "RATE_LIMITED"}), 429
+            return jsonify({"error": "Access forbidden. You may need to click 'Authorize SSO' in your GitHub token settings.", "code": "FORBIDDEN"}), 403
         elif repo_resp.status_code == 404:
-            return jsonify({"error": "Repository not found or is private.", "code": "PRIVATE_OR_NOT_FOUND"}), 404
+            # NEW: Detailed permission hint
+            msg = "Repository not found. If this is a private repo, ensure your token has 'All repositories' access and 'Contents: Read-only' permissions."
+            return jsonify({"error": msg, "code": "PRIVATE_OR_LACKS_PERMISSION"}), 404
         elif repo_resp.status_code != 200:
             return jsonify({"error": f"GitHub API error ({repo_resp.status_code})", "code": "API_ERROR"}), 502
 
@@ -177,6 +199,8 @@ def generate_tree_visual(selected_files):
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_repo():
+    cleanup_old_sessions()
+
     data = request.json or {}
     repo_url = data.get('url', '').strip()
     branch = data.get('branch', 'main').strip()
@@ -186,7 +210,8 @@ def analyze_repo():
     if not owner or not repo:
         return jsonify({"error": "Invalid GitHub URL", "code": "INVALID_URL"}), 400
 
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = tempfile.mkdtemp(dir=BASE_TEMP_DIR)
+
     try:
         if token:
             clone_url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
@@ -210,8 +235,8 @@ def analyze_repo():
         error_str = str(e).lower()
         if 'authentication' in error_str or 'could not read' in error_str or 'terminal prompt' in error_str:
             return jsonify({
-                "error": "Authentication failed. This repository may be private.",
-                "code": "AUTH_FAILED"
+                "error": "Cloning failed. Your token is missing the 'Contents: Read-only' permission.",
+                "code": "LACKS_CONTENTS_PERMISSION"
             }), 401
         if 'not found' in error_str or 'repository' in error_str:
             return jsonify({
@@ -223,6 +248,8 @@ def analyze_repo():
 
 @app.route('/api/process', methods=['POST'])
 def process_files():
+    cleanup_old_sessions()
+
     data = request.json or {}
     repo_path = data.get('repo_path', '')
     selected_files = data.get('files', [])
@@ -234,6 +261,8 @@ def process_files():
         return jsonify({"error": "Session expired. Please re-analyze the repository.", "code": "SESSION_EXPIRED"}), 400
 
     try:
+        os.utime(repo_path, None)
+
         now = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
         full_name = f"{owner}/{repo_name}" if owner else repo_name
         file_count = len(selected_files)
@@ -299,12 +328,6 @@ It is formatted for use as AI context (LLM prompt input).
     except Exception as e:
         logger.error(f"Process failed: {str(e)}")
         return jsonify({"error": str(e), "code": "PROCESS_FAILED"}), 500
-    finally:
-        # This block will run ALWAYS, whether the `try` succeeds or fails.
-        # This is where we clean up the temporary folder.
-        if repo_path and os.path.exists(repo_path):
-            logger.info(f"Cleaning up temporary directory: {repo_path}")
-            shutil.rmtree(repo_path, ignore_errors=True)
 
 
 @app.route('/ping', methods=['GET'])

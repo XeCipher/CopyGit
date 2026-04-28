@@ -341,3 +341,17 @@ select.cg-select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
+
+/* ──────────────────────────────────────────────
+   MODAL STEP LINKS
+   ────────────────────────────────────────────── */
+.step-text a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.step-text a:hover {
+  color: var(--accent-hover);
+}

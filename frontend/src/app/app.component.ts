@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService, RepoNode, RepoInfo } from './services/api.service';
 import { TreeNodeComponent } from './components/tree-node/tree-node.component';
 
-type ErrorCode = 'private' | 'invalid_token' | 'not_found' | 'rate_limited' | 'forbidden' | 'unknown' | '';
+type ErrorCode = 'private' | 'not_found' | 'lacks_permission' | 'invalid_token' | 'rate_limited' | 'forbidden' | 'unknown' | '';
 
 @Component({
   selector: 'app-root',
@@ -52,9 +52,9 @@ export class AppComponent implements OnInit {
   copied = false;
 
   tokenSteps = [
-    'Go to GitHub Settings → Developer settings → <strong>Personal access tokens</strong> → <strong>Fine-grained tokens</strong>',
-    'Set Repository access to <strong>All repositories</strong> and <strong>Contents</strong> permission to Read-only',
-    'Generate the token, copy, and paste it here'
+    'Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub Token Settings</a> to create a new <strong>Fine-grained token</strong>.',
+    'Set <em>Repository access</em> to <strong>All repositories</strong>. Then, under <em>Repository permissions</em>, set <strong>Contents</strong> to <strong>Read-only</strong>.',
+    'Click <strong>Generate token</strong> at the bottom, then copy and paste it here.'
   ];
 
   constructor(
@@ -156,8 +156,12 @@ export class AppComponent implements OnInit {
       error: err => {
         this.fetchingBranches = false;
         const code = err.error?.code || '';
-        if (code === 'PRIVATE_OR_NOT_FOUND') {
-          this.repoError = 'private';
+        if (code === 'PRIVATE_OR_LACKS_PERMISSION') {
+          if (this.githubToken) {
+            this.repoError = 'lacks_permission';
+          } else {
+            this.repoError = 'private';
+          }
           this.isPrivateDetected = true;
         } else if (code === 'INVALID_TOKEN') {
           this.repoError = 'invalid_token';
@@ -192,8 +196,10 @@ export class AppComponent implements OnInit {
       error: err => {
         this.loading = false;
         const code = err.error?.code || '';
-        if (code === 'AUTH_FAILED') {
-          this.isPrivateDetected = true;
+        if (code === 'LACKS_CONTENTS_PERMISSION') {
+          this.repoError = 'lacks_permission';
+          this.showTokenModal = true;
+        } else if (code === 'AUTH_FAILED') {
           this.repoError = 'private';
           this.showTokenModal = true;
         } else {

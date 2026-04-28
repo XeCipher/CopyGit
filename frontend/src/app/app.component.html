@@ -226,6 +226,28 @@
         </button>
       </div>
 
+      <!-- Token lacks permissions -->
+      <div *ngIf="repoError === 'lacks_permission'" class="mt-4 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
+           style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
+        <div class="flex items-start gap-3 flex-1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-0.5" style="color: var(--error)">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <p class="text-sm font-semibold" style="color: var(--error)">Token missing permissions</p>
+            <p class="text-xs mt-0.5 leading-relaxed" style="color: var(--text-secondary)">
+              Your token is valid but cannot read this repository. In GitHub, edit your token and ensure 
+              <strong>Repository access</strong> is set to <strong>All repositories</strong>, and 
+              <strong>Contents</strong> is set to <strong>Read-only</strong>.
+            </p>
+          </div>
+        </div>
+        <button (click)="showTokenModal = true" class="btn-primary flex-shrink-0 text-sm py-2"
+                style="background: var(--error);">
+          Update Token
+        </button>
+      </div>
+
       <!-- Invalid token -->
       <div *ngIf="repoError === 'invalid_token'" class="mt-4 rounded-xl p-4 animate-slide-down flex items-center gap-3"
            style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
@@ -492,7 +514,7 @@
               style="background: var(--accent-dim); color: var(--accent);">
           {{ i + 1 }}
         </span>
-        <p class="text-xs leading-relaxed" style="color: var(--text-secondary);" [innerHTML]="step"></p>
+        <p class="text-xs leading-relaxed step-text" style="color: var(--text-secondary);" [innerHTML]="step"></p>
       </li>
     </ol>
 
