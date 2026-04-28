@@ -188,7 +188,7 @@ def analyze_repo():
     temp_dir = tempfile.mkdtemp()
     try:
         if token:
-            clone_url = f"https://oauth2:{token}@github.com/{owner}/{repo}.git"
+            clone_url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
         else:
             clone_url = f"https://github.com/{owner}/{repo}.git"
 
