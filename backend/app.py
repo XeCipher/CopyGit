@@ -46,7 +46,7 @@ IGNORE_EXTENSIONS = {
     '.tar', '.gz', '.mp4', '.mp3', '.woff', '.woff2', '.ttf', '.eot',
     '.otf', '.webp', '.avif', '.bmp', '.tiff', '.psd', '.ai', '.sketch',
     '.fig', '.dmg', '.exe', '.bin', '.dll', '.so', '.dylib', '.class',
-    '.pyc', '.pyo', '.o', '.a', '.lib'
+    '.pyc', '.pyo', '.o', '.a', '.lib', '.rvt'
 }
 
 def parse_github_url(url):
