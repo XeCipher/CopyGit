@@ -145,28 +145,29 @@ def get_directory_structure(root_path, current_dir=None):
         return structure
 
     for item in items:
-        if item in IGNORE_LIST:
-            continue
         full_path = os.path.join(current_dir, item)
         rel_path = os.path.relpath(full_path, root_path)
         is_dir = os.path.isdir(full_path)
-
-        if not is_dir:
-            _, ext = os.path.splitext(item)
-            if ext.lower() in IGNORE_EXTENSIONS:
-                continue
 
         node = {
             "name": item,
             "path": rel_path.replace(os.sep, '/'),
             "type": "directory" if is_dir else "file",
-            "children": get_directory_structure(root_path, full_path) if is_dir else None
+            "children": None
         }
-        if not is_dir:
+
+        if is_dir:
+            if item in IGNORE_LIST:
+                # Include directory but don't traverse its contents
+                node["children"] = [] 
+            else:
+                node["children"] = get_directory_structure(root_path, full_path)
+        else:
             try:
                 node["size"] = os.path.getsize(full_path)
             except Exception:
                 node["size"] = 0
+
         structure.append(node)
     return structure
 
@@ -298,6 +299,13 @@ It is formatted for use as AI context (LLM prompt input).
         for rel_path in sorted(selected_files):
             full_path = os.path.join(repo_path, rel_path.replace('/', os.sep))
             if os.path.isfile(full_path):
+                
+                # Check if it's an explicitly ignored file type
+                _, ext = os.path.splitext(full_path)
+                if ext.lower() in IGNORE_EXTENSIONS:
+                    skipped.append(rel_path)
+                    continue
+
                 try:
                     with open(full_path, 'r', encoding='utf-8', errors='strict') as f:
                         content = f.read()
