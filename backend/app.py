@@ -10,24 +10,38 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from git import Repo
 
+# Setup basic logging to track analysis and cleanup activities
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "https://copygit.vercel.app"}})
+
+# Configured CORS to allow both the production site and local development
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "https://copygit.vercel.app",
+            "http://localhost:4200",
+            "http://localhost:5000"
+        ]
+    }
+})
 
 SESSION_TIMEOUT_MINUTES = 15
 BASE_TEMP_DIR = os.path.join(tempfile.gettempdir(), 'copygit_sessions')
 os.makedirs(BASE_TEMP_DIR, exist_ok=True)
 
 def cleanup_old_sessions():
-    """Sweeps the base temp directory and deletes repos older than the timeout."""
+    """
+    Sweeps the base temp directory and deletes repo clones older than 
+    the timeout to keep the server storage clean.
+    """
     try:
         now = time.time()
         for folder_name in os.listdir(BASE_TEMP_DIR):
             folder_path = os.path.join(BASE_TEMP_DIR, folder_name)
             if os.path.isdir(folder_path):
-                # Check how old the folder is
+                # Check the age of the folder via last modification time
                 last_modified = os.path.getmtime(folder_path)
                 if (now - last_modified) > (SESSION_TIMEOUT_MINUTES * 60):
                     logger.info(f"Session expired: Deleting {folder_path}")
@@ -35,12 +49,14 @@ def cleanup_old_sessions():
     except Exception as e:
         logger.error(f"Cleanup failed: {e}")
 
+# Standard list of directories and extensions to skip for LLM context
 IGNORE_LIST = {
     '.git', '.github', 'node_modules', 'venv', '__pycache__', '.next',
     'dist', 'build', '.angular', '.vscode', 'package-lock.json', 'yarn.lock',
     '.env', '.env.local', '.env.production', 'coverage', '.nyc_output',
     '.cache', 'tmp', 'temp', '.DS_Store', 'Thumbs.db'
 }
+
 IGNORE_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip',
     '.tar', '.gz', '.mp4', '.mp3', '.woff', '.woff2', '.ttf', '.eot',
@@ -50,6 +66,7 @@ IGNORE_EXTENSIONS = {
 }
 
 def parse_github_url(url):
+    """Extracts owner and repo name from a standard GitHub URL."""
     url = url.rstrip('/')
     pattern = r"github\.com/([^/]+)/([^/.?#]+)"
     match = re.search(pattern, url)
@@ -58,17 +75,21 @@ def parse_github_url(url):
     return None, None
 
 def get_auth_headers(user_token=None):
+    """
+    Constructs GitHub API headers, prioritizing the user's personal token
+    to handle private repositories or higher rate limits.
+    """
     headers = {
         'Accept': 'application/vnd.github.v3+json',
         'User-Agent': 'CopyGit/1.0',
         'X-GitHub-Api-Version': '2022-11-28'
     }
     
-    # Priority 1: User's token from the UI (for their private repos)
+    # Priority 1: User's token provided from the frontend
     if user_token and user_token.strip():
         headers['Authorization'] = f'Bearer {user_token.strip()}'
     
-    # Priority 2: Your scope-less backend token (to bump limits for everyone)
+    # Priority 2: System backend token for higher anonymous limits
     else:
         backend_token = os.environ.get('GITHUB_BACKEND_TOKEN')
         if backend_token:
@@ -78,6 +99,7 @@ def get_auth_headers(user_token=None):
 
 @app.route('/api/repo-info', methods=['POST'])
 def get_repo_info():
+    """Fetches basic metadata and a list of branches for the repository."""
     data = request.json or {}
     repo_url = data.get('url', '').strip()
     token = data.get('token', '').strip()
@@ -97,10 +119,9 @@ def get_repo_info():
             rate_limit = repo_resp.headers.get('X-RateLimit-Remaining', '?')
             if rate_limit == '0':
                 return jsonify({"error": "GitHub API rate limit exceeded.", "code": "RATE_LIMITED"}), 429
-            return jsonify({"error": "Access forbidden. You may need to click 'Authorize SSO' in your GitHub token settings.", "code": "FORBIDDEN"}), 403
+            return jsonify({"error": "Access forbidden.", "code": "FORBIDDEN"}), 403
         elif repo_resp.status_code == 404:
-            # NEW: Detailed permission hint
-            msg = "Repository not found. If this is a private repo, ensure your token has 'All repositories' access and 'Contents: Read-only' permissions."
+            msg = "Repository not found. Ensure your token has correct permissions if this is a private repo."
             return jsonify({"error": msg, "code": "PRIVATE_OR_LACKS_PERMISSION"}), 404
         elif repo_resp.status_code != 200:
             return jsonify({"error": f"GitHub API error ({repo_resp.status_code})", "code": "API_ERROR"}), 502
@@ -108,6 +129,7 @@ def get_repo_info():
         repo_data = repo_resp.json()
         default_branch = repo_data.get('default_branch', 'main')
 
+        # Fetch first 100 branches
         branches_url = f"https://api.github.com/repos/{owner}/{repo}/branches?per_page=100"
         branches_resp = requests.get(branches_url, headers=headers, timeout=10)
         branches_data = branches_resp.json() if branches_resp.status_code == 200 else []
@@ -136,13 +158,22 @@ def get_repo_info():
 
 
 def get_directory_structure(root_path, current_dir=None):
+    """
+    Recursively builds a tree-like JSON structure of the repository.
+    Calculates sizes bottom-up, meaning directory sizes are the sum of their contents.
+    Returns: (structure_list, total_directory_size)
+    """
     if current_dir is None:
         current_dir = root_path
+        
     structure = []
+    dir_total_size = 0
+    
     try:
+        # Sort so directories appear before files
         items = sorted(os.listdir(current_dir), key=lambda x: (not os.path.isdir(os.path.join(current_dir, x)), x.lower()))
     except Exception:
-        return structure
+        return structure, 0
 
     for item in items:
         full_path = os.path.join(current_dir, item)
@@ -158,21 +189,28 @@ def get_directory_structure(root_path, current_dir=None):
 
         if is_dir:
             if item in IGNORE_LIST:
-                # Include directory but don't traverse its contents
-                node["children"] = [] 
+                node["children"] = []
+                node["size"] = 0
             else:
-                node["children"] = get_directory_structure(root_path, full_path)
+                children, child_size = get_directory_structure(root_path, full_path)
+                node["children"] = children
+                node["size"] = child_size
+                dir_total_size += child_size
         else:
             try:
-                node["size"] = os.path.getsize(full_path)
+                size = os.path.getsize(full_path)
+                node["size"] = size
+                dir_total_size += size
             except Exception:
                 node["size"] = 0
 
         structure.append(node)
-    return structure
+        
+    return structure, dir_total_size
 
 
 def generate_tree_visual(selected_files):
+    """Generates an ASCII-style directory tree for the LLM bundle header."""
     tree = {}
     for path in selected_files:
         parts = path.split('/')
@@ -200,6 +238,7 @@ def generate_tree_visual(selected_files):
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_repo():
+    """Clones the repo into a temporary folder and returns the file tree."""
     cleanup_old_sessions()
 
     data = request.json or {}
@@ -214,13 +253,17 @@ def analyze_repo():
     temp_dir = tempfile.mkdtemp(dir=BASE_TEMP_DIR)
 
     try:
+        # Construct clone URL with token if provided
         if token:
             clone_url = f"https://x-access-token:{token}@github.com/{owner}/{repo}.git"
         else:
             clone_url = f"https://github.com/{owner}/{repo}.git"
 
+        # Shallow clone to save time/bandwidth
         Repo.clone_from(clone_url, temp_dir, depth=1, branch=branch, env={"GIT_TERMINAL_PROMPT": "0"})
-        structure = get_directory_structure(temp_dir)
+        
+        # We discard the root directory's total size here (the second returned value)
+        structure, _ = get_directory_structure(temp_dir)
 
         return jsonify({
             "structure": structure,
@@ -233,22 +276,20 @@ def analyze_repo():
         logger.error(f"Clone failed: {str(e)}")
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
+        
         error_str = str(e).lower()
-        if 'authentication' in error_str or 'could not read' in error_str or 'terminal prompt' in error_str:
+        if any(keyword in error_str for keyword in ['authentication', 'could not read', 'terminal prompt']):
             return jsonify({
-                "error": "Cloning failed. Your token is missing the 'Contents: Read-only' permission.",
+                "error": "Cloning failed. Verify token permissions.",
                 "code": "LACKS_CONTENTS_PERMISSION"
             }), 401
-        if 'not found' in error_str or 'repository' in error_str:
-            return jsonify({
-                "error": "Repository or branch not found.",
-                "code": "NOT_FOUND"
-            }), 404
-        return jsonify({"error": str(e), "code": "CLONE_FAILED"}), 500
+        
+        return jsonify({"error": "Failed to clone repository.", "code": "CLONE_FAILED"}), 500
 
 
 @app.route('/api/process', methods=['POST'])
 def process_files():
+    """Reads selected files and aggregates them into a single formatted bundle."""
     cleanup_old_sessions()
 
     data = request.json or {}
@@ -259,9 +300,10 @@ def process_files():
     owner = data.get('owner', '')
 
     if not repo_path or not os.path.exists(repo_path):
-        return jsonify({"error": "Session expired. Please re-analyze the repository.", "code": "SESSION_EXPIRED"}), 400
+        return jsonify({"error": "Session expired. Please re-analyze.", "code": "SESSION_EXPIRED"}), 400
 
     try:
+        # Update timestamp to prevent cleanup while processing
         os.utime(repo_path, None)
 
         now = datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
@@ -300,7 +342,6 @@ It is formatted for use as AI context (LLM prompt input).
             full_path = os.path.join(repo_path, rel_path.replace('/', os.sep))
             if os.path.isfile(full_path):
                 
-                # Check if it's an explicitly ignored file type
                 _, ext = os.path.splitext(full_path)
                 if ext.lower() in IGNORE_EXTENSIONS:
                     skipped.append(rel_path)
@@ -323,7 +364,7 @@ It is formatted for use as AI context (LLM prompt input).
         files_section = "FILES\n" + SEP + "\n\n" + "\n".join(file_sections)
 
         if skipped:
-            skip_note = f"\n\nNOTE: {len(skipped)} file(s) were skipped due to encoding issues:\n" + "\n".join(f"  - {f}" for f in skipped) + "\n"
+            skip_note = f"\n\nNOTE: {len(skipped)} files were skipped (binary or encoding issues)."
             files_section += skip_note
 
         full_text = header + tree_section + files_section

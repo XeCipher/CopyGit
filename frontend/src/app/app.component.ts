@@ -220,6 +220,10 @@ export class AppComponent implements OnInit {
     node.children?.forEach(c => this.setRecursive(c, val));
   }
 
+  onChildSelectionChange() {
+     // Intentionally left blank or can handle bubbling up
+  }
+
   // ── GENERATE ──
   generateText() {
     if (!this.repoStructure) return;
@@ -305,16 +309,32 @@ export class AppComponent implements OnInit {
 
   private filterNodes(nodes: RepoNode[], q: string): RepoNode[] {
     const out: RepoNode[] = [];
+    
     for (const n of nodes) {
+      const pathMatch = n.path.toLowerCase().includes(q);
+      const nameMatch = n.name.toLowerCase().includes(q);
+
       if (n.type === 'file') {
-        if (n.name.toLowerCase().includes(q)) out.push(n);
+        if (pathMatch || nameMatch) {
+          out.push(n); // Push original file node
+        }
       } else if (n.children) {
-        const kids = this.filterNodes(n.children, q);
-        if (kids.length || n.name.toLowerCase().includes(q)) {
-          out.push({ ...n, children: kids, expanded: true } as any);
+        // It's a directory
+        if (pathMatch || nameMatch) {
+          // Folder directly matched! Return a shallow clone of the directory that includes ALL original 
+          // children, but default expanded to false so it collapses nicely.
+          out.push({ ...n, expanded: false });
+        } else {
+          // Folder itself didn't match, check inside it recursively
+          const kids = this.filterNodes(n.children, q);
+          if (kids.length > 0) {
+            // Found matches inside. Expand it automatically to show them.
+            out.push({ ...n, children: kids, expanded: true });
+          }
         }
       }
     }
+    
     return out;
   }
 

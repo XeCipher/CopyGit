@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RepoNode } from '../../services/api.service';
@@ -6,7 +6,7 @@ import { RepoNode } from '../../services/api.service';
 @Component({
   selector: 'app-tree-node',
   standalone: true,
-  imports: [CommonModule, FormsModule, TreeNodeComponent],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="select-none">
 
@@ -54,22 +54,22 @@ import { RepoNode } from '../../services/api.service';
           <span *ngIf="node.type === 'file'" class="w-2 h-2 rounded-full flex-shrink-0" [style.background-color]="extColor"></span>
         </span>
 
-        <!-- Name -->
+        <!-- Name (Safely binding highlighted HTML) -->
         <span
           class="text-[12.5px] leading-none truncate flex-1"
           [style.font-family]="'JetBrains Mono, monospace'"
           [style.font-weight]="node.type === 'directory' ? '500' : '400'"
-          [style.color]="node.type === 'directory' ? 'var(--text)' : 'var(--text-secondary)'">
-          {{ node.name }}
+          [style.color]="node.type === 'directory' ? 'var(--text)' : 'var(--text-secondary)'"
+          [innerHTML]="getHighlightedName()">
         </span>
 
-        <!-- File size badge -->
+        <!-- File/Folder size badge (Always visible) -->
         <span
-          *ngIf="node.type === 'file' && node.size !== undefined && node.size! > 0"
-          class="text-[10px] flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          *ngIf="node.size !== undefined"
+          class="text-[10px] flex-shrink-0 opacity-70"
           [style.color]="'var(--muted)'"
           [style.font-family]="'JetBrains Mono, monospace'">
-          {{ formatSize(node.size!) }}
+          {{ formatSize(node.size) }}
         </span>
       </div>
 
@@ -79,23 +79,32 @@ import { RepoNode } from '../../services/api.service';
           *ngFor="let child of node.children"
           [node]="child"
           [depth]="depth + 1"
+          [searchQuery]="searchQuery"
           (selectionChange)="onChildSelectionChange()">
         </app-tree-node>
       </div>
     </div>
   `
 })
-export class TreeNodeComponent implements OnInit {
+export class TreeNodeComponent implements OnInit, OnChanges {
   @Input() node!: RepoNode;
   @Input() depth: number = 0;
+  @Input() searchQuery: string = '';
   @Output() selectionChange = new EventEmitter<void>();
 
   expanded: boolean = true;
 
   ngOnInit() {
-    // Collapse directories deeper than depth 1 if they have many children
-    if (this.depth > 1) {
+    if (this.node.expanded !== undefined) {
+      this.expanded = this.node.expanded;
+    } else if (this.depth > 1) {
       this.expanded = false;
+    }
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['node'] && this.node.expanded !== undefined) {
+      this.expanded = this.node.expanded;
     }
   }
 
@@ -170,8 +179,52 @@ export class TreeNodeComponent implements OnInit {
   }
 
   formatSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  // Employs query searching matching the last provided name and injects <mark> styled via the global stylesheet
+  getHighlightedName(): string {
+    if (!this.searchQuery || !this.searchQuery.trim()) {
+      return this.escapeHtml(this.node.name);
+    }
+    
+    const name = this.node.name;
+    const q = this.searchQuery.toLowerCase().trim();
+    
+    // Evaluate if user is trying to find a sub-file with a path separator (e.g., 'src/app')
+    let queryToHighlight = q;
+    if (q.includes('/')) {
+      const parts = q.split('/');
+      const lastPart = parts[parts.length - 1];
+      if (lastPart && name.toLowerCase().includes(lastPart)) {
+        queryToHighlight = lastPart;
+      } else {
+        return this.escapeHtml(name);
+      }
+    }
+
+    const index = name.toLowerCase().indexOf(queryToHighlight);
+    if (index === -1) return this.escapeHtml(name);
+
+    const before = this.escapeHtml(name.substring(0, index));
+    const match = this.escapeHtml(name.substring(index, index + queryToHighlight.length));
+    const after = this.escapeHtml(name.substring(index + queryToHighlight.length));
+
+    // Dynamic style implementation to match both modes flawlessly
+    return `${before}<mark style="background: var(--accent-dim); color: var(--accent); border-radius: 3px; padding: 0 2px;">${match}</mark>${after}`;
+  }
+
+  private escapeHtml(str: string): string {
+    return str.replace(/[&<>'"]/g, 
+      tag => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[tag as string] || tag)
+    );
   }
 }

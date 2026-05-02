@@ -1,5 +1,5 @@
-<!-- Root wrapper — dark class toggled on <html> -->
-<div class="min-h-screen" style="background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif;">
+<!-- Root wrapper — fixed layout bounds on desktop -->
+<div class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col" style="background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif;">
 
   <!-- ── AMBIENT GLOW (dark only) ─────────────────────────── -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
@@ -14,7 +14,7 @@
   <!-- ═══════════════════════════════════════════════════════
        HEADER
        ═══════════════════════════════════════════════════════ -->
-  <header class="sticky top-0 z-40 backdrop-blur-xl"
+  <header class="sticky top-0 z-40 backdrop-blur-xl flex-shrink-0"
           style="background: var(--bg); border-bottom: 1px solid var(--border-subtle);">
     <div class="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
 
@@ -84,27 +84,27 @@
   <!-- ═══════════════════════════════════════════════════════
        MAIN CONTENT
        ═══════════════════════════════════════════════════════ -->
-  <main class="relative max-w-7xl mx-auto px-4 sm:px-5 py-8 md:py-12">
+  <main class="relative w-full max-w-7xl mx-auto px-4 sm:px-5 py-4 flex flex-col flex-1 lg:overflow-hidden">
 
     <!-- ── HERO (visible before repo loaded) ───────────────── -->
-    <div *ngIf="!repoStructure" class="text-center mb-10 animate-fade-in">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-6 text-xs font-semibold"
+    <div *ngIf="!repoStructure" class="text-center mb-6 mt-2 md:mt-6 animate-fade-in flex-shrink-0">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs font-semibold"
            style="background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);">
         <span class="w-1.5 h-1.5 rounded-full animate-pulse-dot" style="background: var(--accent)"></span>
         Ship AI-ready context instantly
       </div>
-      <h1 class="text-4xl md:text-5xl font-bold tracking-tight mb-4 leading-tight" style="color: var(--text)">
+      <h1 class="text-3xl md:text-5xl font-bold tracking-tight mb-3 leading-tight" style="color: var(--text)">
         Bundle your codebase<br>
         <span style="color: var(--accent)">for any AI, in seconds.</span>
       </h1>
-      <p class="text-base md:text-lg max-w-lg mx-auto" style="color: var(--muted); line-height: 1.65;">
+      <p class="text-sm md:text-base max-w-lg mx-auto" style="color: var(--muted); line-height: 1.6;">
         Paste a GitHub repo URL, select the files you need, and get a perfectly structured text bundle to drop into ChatGPT, Claude, Gemini, or any LLM.
       </p>
 
       <!-- Feature pills -->
-      <div class="flex flex-wrap justify-center gap-2 mt-6">
+      <div class="flex flex-wrap justify-center gap-2 mt-4">
         <span *ngFor="let feat of ['Select specific files', 'Public & private repos', 'All branches', 'Download or copy', 'Token count', 'AI-optimized format']"
-              class="text-xs px-3 py-1 rounded-full"
+              class="text-[11px] px-2.5 py-0.5 rounded-full"
               style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
           {{ feat }}
         </span>
@@ -112,8 +112,7 @@
     </div>
 
     <!-- ── INPUT SECTION ─────────────────────────────────────── -->
-    <section class="card p-5 md:p-6 mb-5"
-             [class.animate-fade-in]="true">
+    <section class="card p-4 md:p-5 mb-4 flex-shrink-0" [class.animate-fade-in]="true">
 
       <!-- Main input row -->
       <div class="flex flex-col sm:flex-row gap-3">
@@ -127,12 +126,12 @@
           </div>
           <input
             type="url"
+            name="repoUrl"
             [(ngModel)]="repoUrl"
             (input)="onUrlChange()"
             placeholder="https://github.com/username/repository"
             class="cg-input"
             style="padding-left: 2.5rem;"
-            autocomplete="off"
             spellcheck="false"
           />
         </div>
@@ -175,7 +174,7 @@
       </div>
 
       <!-- ── REPO INFO BAR ── -->
-      <div *ngIf="repoInfo && !repoError" class="mt-4 flex flex-wrap items-center gap-3 animate-fade-in">
+      <div *ngIf="repoInfo && !repoError" class="mt-3 flex flex-wrap items-center gap-3 animate-fade-in">
         <!-- Repo name -->
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold" style="color: var(--text)">{{ repoInfo.full_name }}</span>
@@ -206,7 +205,7 @@
       <!-- ── ERROR STATES ── -->
 
       <!-- Private repo detected -->
-      <div *ngIf="repoError === 'private'" class="mt-4 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
+      <div *ngIf="repoError === 'private'" class="mt-3 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
            style="background: var(--warning-dim); border: 1px solid var(--warning-border);">
         <div class="flex items-start gap-3 flex-1">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-0.5" style="color: var(--warning)">
@@ -227,7 +226,7 @@
       </div>
 
       <!-- Token lacks permissions -->
-      <div *ngIf="repoError === 'lacks_permission'" class="mt-4 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
+      <div *ngIf="repoError === 'lacks_permission'" class="mt-3 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
            style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
         <div class="flex items-start gap-3 flex-1">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-0.5" style="color: var(--error)">
@@ -249,7 +248,7 @@
       </div>
 
       <!-- Invalid token -->
-      <div *ngIf="repoError === 'invalid_token'" class="mt-4 rounded-xl p-4 animate-slide-down flex items-center gap-3"
+      <div *ngIf="repoError === 'invalid_token'" class="mt-3 rounded-xl p-4 animate-slide-down flex items-center gap-3"
            style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--error); flex-shrink: 0;">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -262,7 +261,7 @@
       </div>
 
       <!-- Rate limited -->
-      <div *ngIf="repoError === 'rate_limited'" class="mt-4 rounded-xl p-4 animate-slide-down flex items-center gap-3"
+      <div *ngIf="repoError === 'rate_limited'" class="mt-3 rounded-xl p-4 animate-slide-down flex items-center gap-3"
            style="background: var(--warning-dim); border: 1px solid var(--warning-border);">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning); flex-shrink: 0;">
           <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -275,19 +274,17 @@
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════════════════════════
-         RESULTS SECTION
-         ═══════════════════════════════════════════════════════ -->
-    <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-slide-up">
+    <!-- ── RESULTS SECTION ── -->
+    <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 lg:overflow-hidden animate-slide-up">
 
-      <!-- ── TREE PANEL ──────────────────────────────────────── -->
-      <div class="lg:col-span-4 card flex flex-col" style="height: 680px;">
+      <!-- ── TREE PANEL ── -->
+      <div class="lg:col-span-4 card flex flex-col h-[450px] lg:h-full overflow-hidden">
 
         <!-- Tree header -->
-        <div class="px-4 pt-4 pb-3" style="border-bottom: 1px solid var(--border-subtle);">
+        <div class="px-4 pt-3.5 pb-2.5 flex-shrink-0" style="border-bottom: 1px solid var(--border-subtle);">
 
           <!-- Title row -->
-          <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center justify-between mb-2.5">
             <div class="flex items-center gap-2">
               <span class="text-sm font-semibold" style="color: var(--text)">Files</span>
               <span class="badge">{{ selectedFileCount }} selected</span>
@@ -321,7 +318,7 @@
             <input
               [(ngModel)]="searchQuery"
               type="search"
-              placeholder="Search files…"
+              placeholder="Search files or paths…"
               class="cg-input text-xs"
               style="padding-left: 2rem; padding-top: 0.45rem; padding-bottom: 0.45rem; font-family: 'JetBrains Mono', monospace;"
             />
@@ -334,7 +331,9 @@
             <app-tree-node
               *ngFor="let node of filteredStructure"
               [node]="node"
-              [depth]="0">
+              [depth]="0"
+              [searchQuery]="searchQuery"
+              (selectionChange)="onChildSelectionChange()">
             </app-tree-node>
           </ng-container>
 
@@ -349,11 +348,11 @@
         </div>
 
         <!-- Generate button -->
-        <div class="p-4" style="border-top: 1px solid var(--border-subtle);">
+        <div class="p-3 flex-shrink-0" style="border-top: 1px solid var(--border-subtle);">
           <button
             (click)="generateText()"
             [disabled]="generatingText || selectedFileCount === 0"
-            class="btn-primary w-full py-3 text-sm justify-center">
+            class="btn-primary w-full py-2.5 text-sm justify-center">
             <div *ngIf="generatingText" class="spinner" style="width:14px; height:14px; border-color: rgba(255,255,255,0.3); border-top-color: white;"></div>
             <svg *ngIf="!generatingText" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -363,11 +362,11 @@
         </div>
       </div>
 
-      <!-- ── OUTPUT PANEL ─────────────────────────────────────── -->
-      <div class="lg:col-span-8 flex flex-col gap-3">
+      <!-- ── OUTPUT PANEL ── -->
+      <div class="lg:col-span-8 flex flex-col gap-2.5 h-[450px] lg:h-full overflow-hidden">
 
-        <!-- Stats bar (shown when output exists) -->
-        <div *ngIf="finalText" class="flex items-center gap-2 flex-wrap animate-fade-in">
+        <!-- Stats bar -->
+        <div *ngIf="finalText" class="flex items-center gap-2 flex-wrap flex-shrink-0 animate-fade-in">
           <span class="badge">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
@@ -401,30 +400,30 @@
           </div>
         </div>
 
-        <!-- Output textarea -->
-        <div class="relative flex-1" [style.height]="finalText ? '636px' : '680px'">
+        <!-- Output textarea wrapper -->
+        <div class="relative flex-1 overflow-hidden min-h-0">
 
-          <!-- Textarea (when output exists) -->
+          <!-- Textarea -->
           <textarea
             *ngIf="finalText"
             readonly
             [value]="finalText"
-            class="w-full h-full rounded-2xl p-6 text-xs leading-relaxed resize-none outline-none"
+            class="w-full h-full rounded-2xl p-5 text-xs leading-relaxed resize-none outline-none"
             style="background: var(--surface); border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); box-shadow: var(--shadow);">
           </textarea>
 
-          <!-- Empty state (no output yet) -->
+          <!-- Empty state -->
           <div *ngIf="!finalText"
-               class="w-full h-full rounded-2xl flex flex-col items-center justify-center text-center p-10"
+               class="w-full h-full rounded-2xl flex flex-col items-center justify-center text-center p-8"
                style="background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);">
-            <div class="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                  style="background: var(--accent-dim);">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
               </svg>
             </div>
             <p class="text-sm font-semibold mb-1.5" style="color: var(--text)">Ready to generate</p>
-            <p class="text-xs max-w-xs" style="color: var(--muted); line-height: 1.65;">
+            <p class="text-xs max-w-xs" style="color: var(--muted); line-height: 1.6;">
               Select files from the tree on the left, then click <strong style="color: var(--text)">Generate Bundle</strong> to create your AI-ready code context.
             </p>
           </div>
@@ -433,7 +432,7 @@
           <button
             *ngIf="finalText"
             (click)="copyToClipboard()"
-            class="absolute top-4 right-4 flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl transition-all"
+            class="absolute top-3.5 right-3.5 flex items-center gap-2 text-xs font-semibold px-3.5 py-1.5 rounded-xl transition-all"
             [style.background]="copied ? 'var(--success)' : 'var(--accent)'"
             style="color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.2);"
             onmouseover="if(!this.classList.contains('copied')) this.style.transform='translateY(-1px)'"
@@ -451,18 +450,16 @@
         </div>
 
         <!-- Token estimate note -->
-        <p *ngIf="finalText" class="text-[11px] text-center animate-fade-in" style="color: var(--muted)">
+        <p *ngIf="finalText" class="text-[11px] text-center flex-shrink-0 animate-fade-in" style="color: var(--muted)">
           ≈ {{ formatNum(tokenCount) }} tokens · estimated at ~4 chars/token · exact count may vary by model
         </p>
       </div>
     </div>
   </main>
 
-  <!-- ═══════════════════════════════════════════════════════
-       FOOTER
-       ═══════════════════════════════════════════════════════ -->
-  <footer class="mt-16 pb-8 text-center">
-    <p class="text-xs" style="color: var(--muted)">
+  <!-- ── FOOTER ── -->
+  <footer class="py-3 flex-shrink-0 text-center lg:py-2">
+    <p class="text-[11px]" style="color: var(--muted)">
       Built with Angular + Flask · Deployed on Vercel + Render ·
       <a href="https://github.com/XeCipher/CopyGit" class="underline transition-colors" style="color: var(--muted)" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">View source</a>
     </p>
@@ -478,7 +475,7 @@
      style="background: rgba(0,0,0,0.6);"
      (click)="showTokenModal = false">
 
-  <div class="modal-panel w-full max-w-md rounded-2xl p-7 relative"
+  <div class="modal-panel w-full max-w-md rounded-2xl p-6 relative"
        style="background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg);"
        (click)="$event.stopPropagation()">
 
@@ -494,7 +491,7 @@
     </button>
 
     <!-- Title -->
-    <div class="flex items-center gap-3 mb-6">
+    <div class="flex items-center gap-3 mb-5">
       <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
            style="background: var(--accent-dim);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent)">
@@ -508,7 +505,7 @@
     </div>
 
     <!-- Steps -->
-    <ol class="space-y-3 mb-6">
+    <ol class="space-y-2.5 mb-5">
       <li *ngFor="let step of tokenSteps; let i = index" class="flex gap-3">
         <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
               style="background: var(--accent-dim); color: var(--accent);">
@@ -519,7 +516,7 @@
     </ol>
 
     <!-- Token input -->
-    <div class="mb-4">
+    <div class="mb-3.5">
       <label class="text-label mb-2 block">Personal Access Token</label>
       <div class="relative">
         <input
@@ -548,7 +545,7 @@
     </div>
 
     <!-- Security note -->
-    <div class="flex items-start gap-2 mb-5 p-3 rounded-xl text-xs"
+    <div class="flex items-start gap-2 mb-4 p-3 rounded-xl text-xs"
          style="background: var(--card); border: 1px solid var(--border);">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-0.5" style="color: var(--success)">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -563,7 +560,7 @@
       <button
         (click)="saveToken()"
         [disabled]="!githubToken.trim()"
-        class="btn-primary flex-1 py-2.5 justify-center">
+        class="btn-primary flex-1 py-2 justify-center">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
         </svg>
