@@ -19,8 +19,7 @@ import { RepoNode } from '../../services/api.service';
         <!-- Expand arrow (directories only) -->
         <span
           *ngIf="node.type === 'directory'"
-          class="w-4 h-4 flex items-center justify-center flex-shrink-0 transition-transform duration-150"
-          [style.transform]="expanded ? 'rotate(90deg)' : 'rotate(0deg)'"
+          class="w-4 h-4 flex items-center justify-center flex-shrink-0 transition-transform duration-150"[style.transform]="expanded ? 'rotate(90deg)' : 'rotate(0deg)'"
           style="color: var(--muted)">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
             <path d="M3 2L7 5L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -34,7 +33,7 @@ import { RepoNode } from '../../services/api.service';
         <input
           type="checkbox"
           class="cg-check"
-          [checked]="node.selected"
+          [checked]="isChecked"
           [indeterminate]="isIndeterminate"
           (change)="onCheckChange($event)"
           (click)="$event.stopPropagation()"
@@ -76,7 +75,7 @@ import { RepoNode } from '../../services/api.service';
       <!-- Children -->
       <div *ngIf="node.type === 'directory' && node.children && expanded">
         <app-tree-node
-          *ngFor="let child of node.children"
+          *ngFor="let child of node.children; trackBy: trackByNode"
           [node]="child"
           [depth]="depth + 1"
           [searchQuery]="searchQuery"
@@ -111,8 +110,17 @@ export class TreeNodeComponent implements OnInit, OnChanges {
   get isIndeterminate(): boolean {
     if (this.node.type !== 'directory' || !this.node.children?.length) return false;
     const files = this.collectFiles(this.node);
+    if (files.length === 0) return false;
     const selected = files.filter(f => f.selected).length;
     return selected > 0 && selected < files.length;
+  }
+
+  get isChecked(): boolean {
+    if (this.node.type === 'file') return !!this.node.selected;
+    if (!this.node.children?.length) return false;
+    const files = this.collectFiles(this.node);
+    if (files.length === 0) return false;
+    return files.every(f => f.selected);
   }
 
   get extColor(): string {
@@ -158,24 +166,21 @@ export class TreeNodeComponent implements OnInit, OnChanges {
   }
 
   onChildSelectionChange() {
-    // Sync directory checkbox state based on children
-    if (this.node.type === 'directory' && this.node.children?.length) {
-      const files = this.collectFiles(this.node);
-      const allSelected = files.every(f => f.selected);
-      const noneSelected = files.every(f => !f.selected);
-      this.node.selected = allSelected ? true : noneSelected ? false : undefined as any;
-    }
     this.selectionChange.emit();
   }
 
   private collectFiles(node: RepoNode): RepoNode[] {
-    const result: RepoNode[] = [];
+    const result: RepoNode[] =[];
     if (node.type === 'file') {
       result.push(node);
     } else if (node.children) {
       node.children.forEach(c => result.push(...this.collectFiles(c)));
     }
     return result;
+  }
+
+  trackByNode(index: number, node: RepoNode): string {
+    return node.path;
   }
 
   formatSize(bytes: number): string {

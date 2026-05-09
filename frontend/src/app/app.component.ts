@@ -26,7 +26,7 @@ export class AppComponent implements OnInit {
   // ── URL / Branch ──
   repoUrl = '';
   branchName = '';
-  branches: string[] = [];
+  branches: string[] =[];
   fetchingBranches = false;
   repoInfo: RepoInfo | null = null;
   repoError: ErrorCode = '';
@@ -36,6 +36,7 @@ export class AppComponent implements OnInit {
   // ── Tree / Analysis ──
   loading = false;
   repoStructure: RepoNode[] | null = null;
+  _filteredStructure: RepoNode[] | null = null; // Stored instead of dynamically calculated using a getter
   repoPath = '';
   repoName = '';
   owner = '';
@@ -50,8 +51,12 @@ export class AppComponent implements OnInit {
   fileCount = 0;
   copyBtnText = 'Copy';
   copied = false;
+  
+  // ── Preview Render Constraints ──
+  showFullPreview = false;
+  isLoadingFullPreview = false;
 
-  tokenSteps = [
+  tokenSteps =[
     'Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub Token Settings</a> to create a new <strong>Fine-grained token</strong>.',
     'Set <em>Repository access</em> to <strong>All repositories</strong>. Then, under <em>Repository permissions</em>, set <strong>Contents</strong> to <strong>Read-only</strong>.',
     'Click <strong>Generate token</strong> at the bottom, then copy and paste it here.'
@@ -128,7 +133,7 @@ export class AppComponent implements OnInit {
     this.repoError = '';
     this.isPrivateDetected = false;
     this.repoInfo = null;
-    this.branches = [];
+    this.branches =[];
     this.branchName = '';
 
     const url = this.repoUrl.trim();
@@ -182,6 +187,7 @@ export class AppComponent implements OnInit {
     this.loading = true;
     this.finalText = '';
     this.repoStructure = null;
+    this.showFullPreview = false;
 
     this.api.analyzeRepo(this.repoUrl, this.branchName, this.githubToken || undefined).subscribe({
       next: res => {
@@ -191,6 +197,7 @@ export class AppComponent implements OnInit {
         this.owner = res.owner;
         this.branch = res.branch || this.branchName;
         this.selectAll(true);
+        this.onSearchChange(); // Establish filtered structure
         this.loading = false;
       },
       error: err => {
@@ -221,7 +228,7 @@ export class AppComponent implements OnInit {
   }
 
   onChildSelectionChange() {
-     // Intentionally left blank or can handle bubbling up
+     // Intentionally left blank - bubbled events handled correctly inside the components
   }
 
   // ── GENERATE ──
@@ -232,7 +239,10 @@ export class AppComponent implements OnInit {
       alert('Select at least one file to generate a bundle.');
       return;
     }
+    
     this.generatingText = true;
+    this.showFullPreview = false; // Reset preview override
+    
     this.api.processFiles(this.repoPath, files, this.repoName, this.branchName, this.owner).subscribe({
       next: res => {
         this.finalText = res.full_text;
@@ -248,6 +258,7 @@ export class AppComponent implements OnInit {
           alert('Session expired. Please re-analyze the repository.');
           this.repoStructure = null;
           this.finalText = '';
+          this.onSearchChange();
         } else {
           alert(msg);
         }
@@ -295,20 +306,47 @@ export class AppComponent implements OnInit {
     URL.revokeObjectURL(url);
   }
 
-  // ── COMPUTED ──
+  loadFullPreview() {
+    this.isLoadingFullPreview = true;
+    setTimeout(() => {
+      this.showFullPreview = true;
+      this.isLoadingFullPreview = false;
+    }, 50); // slight delay allowing UI to paint the loading state before the freeze
+  }
+
+  // ── COMPUTED & HELPERS ──
   get selectedFileCount(): number {
     if (!this.repoStructure) return 0;
     return this.collectFiles(this.repoStructure).length;
   }
 
-  get filteredStructure(): RepoNode[] | null {
-    if (!this.repoStructure) return null;
-    if (!this.searchQuery.trim()) return this.repoStructure;
-    return this.filterNodes(this.repoStructure, this.searchQuery.toLowerCase().trim());
+  // Renders only maximum 100K chars in UI natively unless explicitely allowed
+  get previewText(): string {
+    const MAX_PREVIEW_LENGTH = 100000;
+    if (!this.showFullPreview && this.finalText.length > MAX_PREVIEW_LENGTH) {
+      return this.finalText.substring(0, MAX_PREVIEW_LENGTH) + 
+             '\n\n================================================================================\n' +
+             'NOTE: Preview truncated for rendering performance. \n' +
+             'Please use "Download .txt", "Copy", or click "Full Preview" to view the rest.\n' +
+             '================================================================================';
+    }
+    return this.finalText;
+  }
+
+  onSearchChange() {
+    if (!this.repoStructure) {
+      this._filteredStructure = null;
+      return;
+    }
+    if (!this.searchQuery.trim()) {
+      this._filteredStructure = this.repoStructure;
+      return;
+    }
+    this._filteredStructure = this.filterNodes(this.repoStructure, this.searchQuery.toLowerCase().trim());
   }
 
   private filterNodes(nodes: RepoNode[], q: string): RepoNode[] {
-    const out: RepoNode[] = [];
+    const out: RepoNode[] =[];
     
     for (const n of nodes) {
       const pathMatch = n.path.toLowerCase().includes(q);
@@ -336,6 +374,11 @@ export class AppComponent implements OnInit {
     }
     
     return out;
+  }
+
+  // Important trackBy function to prevent Angular from destroying DOM elements during state updates.
+  trackByNode(index: number, node: RepoNode): string {
+    return node.path;
   }
 
   formatBytes(bytes: number): string {
