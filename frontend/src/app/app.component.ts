@@ -210,7 +210,7 @@ export class AppComponent implements OnInit {
           this.repoError = 'private';
           this.showTokenModal = true;
         } else {
-          alert(err.error?.error || 'Failed to clone repository. Please check the URL and try again.');
+          alert(err.error?.error || 'Failed to analyze repository. Please check the URL and try again.');
         }
       }
     });

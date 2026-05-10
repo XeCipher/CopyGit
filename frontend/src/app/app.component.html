@@ -159,7 +159,7 @@
           </div>
         </div>
 
-        <!-- Analyze button -->
+        <!-- Inside the Analyze button -->
         <button
           (click)="onAnalyze()"
           [disabled]="loading || !repoUrl || !branchName || repoError === 'not_found' || repoError === 'unknown'"
@@ -168,7 +168,7 @@
           <svg *ngIf="!loading" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
-          {{ loading ? 'Cloning…' : 'Analyze' }}
+          {{ loading ? 'Analyzing…' : 'Analyze' }}
         </button>
       </div>
 
@@ -475,7 +475,7 @@
   <!-- ── FOOTER ── -->
   <footer class="py-3 flex-shrink-0 text-center lg:py-2">
     <p class="text-[11px]" style="color: var(--muted)">
-      Built with Angular + Flask · Deployed on Vercel + Render ·
+      Built with Angular · Deployed on Vercel ·
       <a href="https://github.com/XeCipher/CopyGit" class="underline transition-colors" style="color: var(--muted)" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">View source</a>
     </p>
   </footer>
