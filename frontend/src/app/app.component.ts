@@ -26,7 +26,7 @@ export class AppComponent implements OnInit {
   // ── URL / Branch ──
   repoUrl = '';
   branchName = '';
-  branches: string[] =[];
+  branches: string[] = [];
   fetchingBranches = false;
   repoInfo: RepoInfo | null = null;
   repoError: ErrorCode = '';
@@ -36,7 +36,7 @@ export class AppComponent implements OnInit {
   // ── Tree / Analysis ──
   loading = false;
   repoStructure: RepoNode[] | null = null;
-  _filteredStructure: RepoNode[] | null = null; // Stored instead of dynamically calculated using a getter
+  _filteredStructure: RepoNode[] | null = null;
   repoPath = '';
   repoName = '';
   owner = '';
@@ -51,12 +51,12 @@ export class AppComponent implements OnInit {
   fileCount = 0;
   copyBtnText = 'Copy';
   copied = false;
-  
+
   // ── Preview Render Constraints ──
   showFullPreview = false;
   isLoadingFullPreview = false;
 
-  tokenSteps =[
+  tokenSteps = [
     'Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub Token Settings</a> to create a new <strong>Fine-grained token</strong>.',
     'Set <em>Repository access</em> to <strong>All repositories</strong>. Then, under <em>Repository permissions</em>, set <strong>Contents</strong> to <strong>Read-only</strong>.',
     'Click <strong>Generate token</strong> at the bottom, then copy and paste it here.'
@@ -111,7 +111,7 @@ export class AppComponent implements OnInit {
       localStorage.setItem('copygit_github_token', t);
       this.tokenSaved = true;
       this.githubToken = t;
-      // Retry if we were blocked on private repo
+      // Retry if we were blocked on a private repo
       if (this.isPrivateDetected && this.repoUrl) {
         this.showTokenModal = false;
         this.fetchRepoInfo();
@@ -133,7 +133,7 @@ export class AppComponent implements OnInit {
     this.repoError = '';
     this.isPrivateDetected = false;
     this.repoInfo = null;
-    this.branches =[];
+    this.branches = [];
     this.branchName = '';
 
     const url = this.repoUrl.trim();
@@ -197,7 +197,7 @@ export class AppComponent implements OnInit {
         this.owner = res.owner;
         this.branch = res.branch || this.branchName;
         this.selectAll(true);
-        this.onSearchChange(); // Establish filtered structure
+        this.onSearchChange();
         this.loading = false;
       },
       error: err => {
@@ -228,7 +228,7 @@ export class AppComponent implements OnInit {
   }
 
   onChildSelectionChange() {
-     // Intentionally left blank - bubbled events handled correctly inside the components
+    // Intentionally left blank — bubbled events are handled correctly inside the components
   }
 
   // ── GENERATE ──
@@ -239,11 +239,19 @@ export class AppComponent implements OnInit {
       alert('Select at least one file to generate a bundle.');
       return;
     }
-    
+
     this.generatingText = true;
-    this.showFullPreview = false; // Reset preview override
-    
-    this.api.processFiles(this.repoPath, files, this.repoName, this.branchName, this.owner).subscribe({
+    this.showFullPreview = false;
+
+    // Pass the stored token so private repo tarballs can be fetched by the serverless function
+    this.api.processFiles(
+      this.repoPath,
+      files,
+      this.repoName,
+      this.branchName,
+      this.owner,
+      this.githubToken || undefined
+    ).subscribe({
       next: res => {
         this.finalText = res.full_text;
         this.charCount = this.finalText.length;
@@ -284,7 +292,7 @@ export class AppComponent implements OnInit {
         this.copyBtnText = 'Copy';
       }, 2000);
     }).catch(() => {
-      // Fallback
+      // Fallback for browsers that block clipboard API
       const ta = document.createElement('textarea');
       ta.value = this.finalText;
       document.body.appendChild(ta);
@@ -308,10 +316,11 @@ export class AppComponent implements OnInit {
 
   loadFullPreview() {
     this.isLoadingFullPreview = true;
+    // Slight delay lets Angular paint the loading state before the heavy render freeze
     setTimeout(() => {
       this.showFullPreview = true;
       this.isLoadingFullPreview = false;
-    }, 50); // slight delay allowing UI to paint the loading state before the freeze
+    }, 50);
   }
 
   // ── COMPUTED & HELPERS ──
@@ -320,11 +329,11 @@ export class AppComponent implements OnInit {
     return this.collectFiles(this.repoStructure).length;
   }
 
-  // Renders only maximum 100K chars in UI natively unless explicitely allowed
+  // Truncates preview to 100K chars unless the user explicitly requests full render
   get previewText(): string {
     const MAX_PREVIEW_LENGTH = 100000;
     if (!this.showFullPreview && this.finalText.length > MAX_PREVIEW_LENGTH) {
-      return this.finalText.substring(0, MAX_PREVIEW_LENGTH) + 
+      return this.finalText.substring(0, MAX_PREVIEW_LENGTH) +
              '\n\n================================================================================\n' +
              'NOTE: Preview truncated for rendering performance. \n' +
              'Please use "Download .txt", "Copy", or click "Full Preview" to view the rest.\n' +
@@ -346,37 +355,35 @@ export class AppComponent implements OnInit {
   }
 
   private filterNodes(nodes: RepoNode[], q: string): RepoNode[] {
-    const out: RepoNode[] =[];
-    
+    const out: RepoNode[] = [];
+
     for (const n of nodes) {
       const pathMatch = n.path.toLowerCase().includes(q);
       const nameMatch = n.name.toLowerCase().includes(q);
 
       if (n.type === 'file') {
         if (pathMatch || nameMatch) {
-          out.push(n); // Push original file node
+          out.push(n);
         }
       } else if (n.children) {
-        // It's a directory
         if (pathMatch || nameMatch) {
-          // Folder directly matched! Return a shallow clone of the directory that includes ALL original 
-          // children, but default expanded to false so it collapses nicely.
+          // Folder name matched — return a shallow clone, collapsed so the tree stays tidy
           out.push({ ...n, expanded: false });
         } else {
-          // Folder itself didn't match, check inside it recursively
+          // Folder didn't match — dig inside it recursively
           const kids = this.filterNodes(n.children, q);
           if (kids.length > 0) {
-            // Found matches inside. Expand it automatically to show them.
+            // Auto-expand folders that contain matches
             out.push({ ...n, children: kids, expanded: true });
           }
         }
       }
     }
-    
+
     return out;
   }
 
-  // Important trackBy function to prevent Angular from destroying DOM elements during state updates.
+  // trackBy prevents Angular from destroying and recreating DOM nodes on state updates
   trackByNode(index: number, node: RepoNode): string {
     return node.path;
   }

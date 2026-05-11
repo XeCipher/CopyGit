@@ -42,13 +42,15 @@ export class ApiService {
     return this.http.post<any>(`${this.baseUrl}/analyze`, { url, branch, token: token || '' });
   }
 
-  processFiles(repoPath: string, files: string[], repoName: string, branch: string, owner: string): Observable<any> {
+  // token is now forwarded so private repo tarballs can be downloaded in process.js
+  processFiles(repoPath: string, files: string[], repoName: string, branch: string, owner: string, token?: string): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/process`, {
       repo_path: repoPath,
       files,
       repo_name: repoName,
       branch,
-      owner
+      owner,
+      token: token || ''
     });
   }
 }
