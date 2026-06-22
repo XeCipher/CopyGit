@@ -26,6 +26,14 @@ export interface RepoInfo {
   size_kb: number;
 }
 
+export interface CommitInfo {
+  sha: string;
+  message: string;
+  author: string;
+  date: string;
+  html_url: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -36,6 +44,10 @@ export class ApiService {
 
   getRepoInfo(url: string, token?: string): Observable<RepoInfo> {
     return this.http.post<RepoInfo>(`${this.baseUrl}/repo-info`, { url, token: token || '' });
+  }
+
+  getLatestCommit(url: string, branch: string, token?: string): Observable<CommitInfo> {
+    return this.http.post<CommitInfo>(`${this.baseUrl}/latest-commit`, { url, branch, token: token || '' });
   }
 
   analyzeRepo(url: string, branch: string, token?: string): Observable<any> {

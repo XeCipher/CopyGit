@@ -1,7 +1,7 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { DOCUMENT, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiService, RepoNode, RepoInfo } from './services/api.service';
+import { ApiService, RepoNode, RepoInfo, CommitInfo } from './services/api.service';
 import { TreeNodeComponent } from './components/tree-node/tree-node.component';
 
 type ErrorCode = 'private' | 'not_found' | 'lacks_permission' | 'invalid_token' | 'rate_limited' | 'forbidden' | 'unknown' | '';
@@ -32,6 +32,10 @@ export class AppComponent implements OnInit {
   repoError: ErrorCode = '';
   isPrivateDetected = false;
   private urlDebounce: any;
+
+  // ── Latest Commit ──
+  latestCommit: CommitInfo | null = null;
+  fetchingCommit = false;
 
   // ── Tree / Analysis ──
   loading = false;
@@ -127,7 +131,7 @@ export class AppComponent implements OnInit {
     localStorage.removeItem('copygit_github_token');
   }
 
-  // ── URL CHANGE ──
+  // ── URL & BRANCH CHANGE ──
   onUrlChange() {
     clearTimeout(this.urlDebounce);
     this.repoError = '';
@@ -135,6 +139,7 @@ export class AppComponent implements OnInit {
     this.repoInfo = null;
     this.branches = [];
     this.branchName = '';
+    this.latestCommit = null;
 
     const url = this.repoUrl.trim();
     if (!url.includes('github.com/')) return;
@@ -157,6 +162,9 @@ export class AppComponent implements OnInit {
         this.fetchingBranches = false;
         this.repoError = '';
         this.isPrivateDetected = false;
+        
+        // Fetch commit for the newly set default branch
+        this.fetchLatestCommit();
       },
       error: err => {
         this.fetchingBranches = false;
@@ -177,6 +185,28 @@ export class AppComponent implements OnInit {
         } else {
           this.repoError = 'unknown';
         }
+      }
+    });
+  }
+
+  onBranchChange() {
+    this.fetchLatestCommit();
+  }
+
+  fetchLatestCommit() {
+    if (!this.repoUrl || !this.branchName) return;
+
+    this.fetchingCommit = true;
+    this.latestCommit = null; // Clear so skeleton flashes slightly
+
+    this.api.getLatestCommit(this.repoUrl, this.branchName, this.githubToken || undefined).subscribe({
+      next: res => {
+        this.latestCommit = res;
+        this.fetchingCommit = false;
+      },
+      error: err => {
+        this.fetchingCommit = false;
+        console.error('Failed to fetch latest commit:', err.error?.error || err.message);
       }
     });
   }

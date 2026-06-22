@@ -139,6 +139,7 @@
         <!-- Branch selector -->
         <div class="relative w-full sm:w-48 flex-shrink-0">
           <select [(ngModel)]="branchName"
+            (ngModelChange)="onBranchChange()"
             [disabled]="branches.length === 0"
             class="cg-select"
             [style.opacity]="branches.length === 0 ? 0.5 : 1">
@@ -199,6 +200,45 @@
               style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
           {{ repoInfo.language }}
         </span>
+      </div>
+
+      <!-- ── LATEST COMMIT BAR ── -->
+      <div *ngIf="(latestCommit || fetchingCommit) && repoInfo && !repoError" class="mt-3 flex items-center gap-3 p-2.5 px-3 rounded-xl border animate-fade-in"
+           style="background: var(--card); border-color: var(--border);">
+        <!-- Branch / Git icon -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" style="color: var(--muted)">
+          <circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/>
+        </svg>
+
+        <!-- Commit Data -->
+        <div *ngIf="latestCommit" class="flex-1 flex flex-wrap items-center gap-2 text-xs overflow-hidden">
+          <a [href]="latestCommit.html_url" target="_blank" rel="noopener noreferrer"
+             class="font-mono font-semibold transition-colors flex-shrink-0"
+             style="color: var(--accent);"
+             onmouseover="this.style.color='var(--accent-hover)'"
+             onmouseout="this.style.color='var(--accent)'"
+             title="View commit on GitHub">
+            {{ latestCommit.sha | slice:0:7 }}
+          </a>
+          <span style="color: var(--border)">·</span>
+
+          <span class="truncate flex-1 min-w-[100px]" style="color: var(--text)" [title]="latestCommit.message">
+            {{ latestCommit.message }}
+          </span>
+
+          <!-- Author and Date (Hidden on mobile) -->
+          <span class="hidden sm:inline flex-shrink-0" style="color: var(--muted)">
+            by {{ latestCommit.author }} on {{ latestCommit.date | date:'MMM d, yyyy' }}
+          </span>
+        </div>
+
+        <!-- Skeleton / Fetching state -->
+        <div *ngIf="fetchingCommit && !latestCommit" class="flex-1 flex items-center gap-2 text-xs">
+          <span style="color: var(--muted)">Fetching latest commit...</span>
+        </div>
+
+        <!-- Loading spinner attached to the commit bar -->
+        <div *ngIf="fetchingCommit" class="spinner flex-shrink-0" style="width:13px; height:13px; border-width: 1.5px;"></div>
       </div>
 
       <!-- ── ERROR STATES ── -->
