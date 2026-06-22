@@ -19,7 +19,8 @@ import { RepoNode } from '../../services/api.service';
         <!-- Expand arrow (directories only) -->
         <span
           *ngIf="node.type === 'directory'"
-          class="w-4 h-4 flex items-center justify-center flex-shrink-0 transition-transform duration-150"[style.transform]="expanded ? 'rotate(90deg)' : 'rotate(0deg)'"
+          class="w-4 h-4 flex items-center justify-center flex-shrink-0 transition-transform duration-150"
+          [style.transform]="expanded ? 'rotate(90deg)' : 'rotate(0deg)'"
           style="color: var(--muted)">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
             <path d="M3 2L7 5L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -139,6 +140,13 @@ export class TreeNodeComponent implements OnInit, OnChanges {
       vue: '#22c55e', svelte: '#f97316',
       xml: '#f97316', env: '#eab308',
       lock: '#94a3b8', gitignore: '#94a3b8',
+      
+      // Extended palette for newly supported visual files (Images, Archives, Binaries, etc.)
+      png: '#10b981', jpg: '#10b981', jpeg: '#10b981', gif: '#10b981', svg: '#10b981', ico: '#10b981',
+      pdf: '#ef4444', zip: '#f59e0b', tar: '#f59e0b', gz: '#f59e0b',
+      mp4: '#8b5cf6', mp3: '#8b5cf6',
+      exe: '#ef4444', dll: '#ef4444', so: '#ef4444',
+      rvt: '#3b82f6' // Revit
     };
     return colors[ext] || '#6b7280';
   }
@@ -170,7 +178,7 @@ export class TreeNodeComponent implements OnInit, OnChanges {
   }
 
   private collectFiles(node: RepoNode): RepoNode[] {
-    const result: RepoNode[] =[];
+    const result: RepoNode[] = [];
     if (node.type === 'file') {
       result.push(node);
     } else if (node.children) {

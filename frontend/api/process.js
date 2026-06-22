@@ -2,6 +2,14 @@ import { Readable } from 'stream';
 import tar from 'tar-stream';
 import zlib from 'zlib';
 
+const IGNORE_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip',
+  '.tar', '.gz', '.mp4', '.mp3', '.woff', '.woff2', '.ttf', '.eot',
+  '.otf', '.webp', '.avif', '.bmp', '.tiff', '.psd', '.ai', '.sketch',
+  '.fig', '.dmg', '.exe', '.bin', '.dll', '.so', '.dylib', '.class',
+  '.pyc', '.pyo', '.o', '.a', '.lib', '.rvt'
+]);
+
 function generateTreeVisual(selectedFiles) {
   const tree = {};
   for (const path of selectedFiles) {
@@ -13,7 +21,7 @@ function generateTreeVisual(selectedFiles) {
     }
   }
 
-  const lines =[];
+  const lines = [];
   function walk(node, prefix = "") {
     const keys = Object.keys(node).sort((a, b) => {
       const aHasChildren = Object.keys(node[a]).length > 0;
@@ -55,7 +63,7 @@ export default async function handler(req, res) {
     const extract = tar.extract();
     const selectedSet = new Set(selectedFiles);
     const extractedFiles = {};
-    const skipped =[];
+    const skipped = [];
 
     await new Promise((resolve, reject) => {
       extract.on('entry', (header, stream, next) => {
@@ -65,11 +73,21 @@ export default async function handler(req, res) {
         const relPath = parts.join('/');
 
         if (header.type === 'file' && selectedSet.has(relPath)) {
-          const chunks =[];
+          
+          // Fast-skip bypassing memory allocations for known binary/image extensions
+          const ext = relPath.includes('.') ? '.' + relPath.split('.').pop().toLowerCase() : '';
+          if (IGNORE_EXTENSIONS.has(ext)) {
+            skipped.push(relPath);
+            stream.on('end', () => next());
+            stream.resume(); // Drain the stream to keep iteration moving fast
+            return; // Skip buffering this file
+          }
+
+          const chunks = [];
           stream.on('data', chunk => chunks.push(chunk));
           stream.on('end', () => {
             const buf = Buffer.concat(chunks);
-            // Ignore binary/corrupted extraction safely
+            // Ignore corrupted extractions safely, also catches extension-less binaries
             if (buf.includes(0x00)) {
               skipped.push(relPath);
             } else {

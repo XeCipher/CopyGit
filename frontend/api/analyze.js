@@ -5,14 +5,6 @@ const IGNORE_LIST = new Set([
   '.cache', 'tmp', 'temp', '.DS_Store', 'Thumbs.db'
 ]);
 
-const IGNORE_EXTENSIONS = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip',
-  '.tar', '.gz', '.mp4', '.mp3', '.woff', '.woff2', '.ttf', '.eot',
-  '.otf', '.webp', '.avif', '.bmp', '.tiff', '.psd', '.ai', '.sketch',
-  '.fig', '.dmg', '.exe', '.bin', '.dll', '.so', '.dylib', '.class',
-  '.pyc', '.pyo', '.o', '.a', '.lib', '.rvt'
-]);
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -39,12 +31,8 @@ export default async function handler(req, res) {
     for (const item of treeData.tree) {
       const parts = item.path.split('/');
       
-      // Filter ignores
+      // Filter out ignored folders like node_modules, .git, etc.
       if (parts.some(p => IGNORE_LIST.has(p))) continue;
-      if (item.type === 'blob') {
-        const ext = '.' + item.path.split('.').pop().toLowerCase();
-        if (IGNORE_EXTENSIONS.has(ext)) continue;
-      }
 
       let currentLevel = treeMap;
       for (let i = 0; i < parts.length; i++) {
@@ -68,7 +56,7 @@ export default async function handler(req, res) {
 
     // Convert map to nested array and compute directory sizes
     function convertToArrayAndComputeSize(mapObj) {
-      const result =[];
+      const result = [];
       let totalSize = 0;
 
       for (const key of Object.keys(mapObj).sort((a, b) => {
@@ -95,7 +83,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       structure: childrenArray,
-      repo_path: "stateless", // No longer needed, kept for UI compatibility
+      repo_path: "stateless", 
       repo_name: repo,
       owner: owner,
       branch: branch
