@@ -230,6 +230,25 @@ button, a {
 /* ──────────────────────────────────────────────
    INTERACTIVE HOVER UTILITIES
    ────────────────────────────────────────────── */
+.cg-logo-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.cg-logo-btn:hover {
+  opacity: 0.85;
+}
+.cg-logo-btn:active {
+  transform: scale(0.98);
+}
+.cg-logo-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .cg-hover-card:hover {
   background: var(--card) !important;
 }

@@ -53,6 +53,7 @@ export class AppComponent implements OnInit, OnDestroy {
   repoError: ErrorCode = '';
   repoErrorMessage = '';
   isPrivateDetected = false;
+  private autoAnalyzingInfo = false;
   private urlDebounce: ReturnType<typeof setTimeout> | null = null;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private copyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -189,7 +190,65 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── URL PARSING & HELPERS ──
+  // ── HOME RESET & URL HELPERS ──
+  resetToHome() {
+    if (this.urlDebounce) {
+      clearTimeout(this.urlDebounce);
+      this.urlDebounce = null;
+    }
+    if (this.syncTimer) {
+      clearTimeout(this.syncTimer);
+      this.syncTimer = null;
+    }
+
+    this.repoInfoSub?.unsubscribe();
+    this.commitSub?.unsubscribe();
+    this.analyzeSub?.unsubscribe();
+    this.processSub?.unsubscribe();
+
+    this.repoUrl = '';
+    this.branchName = '';
+    this.branches = [];
+    this.fetchingBranches = false;
+    this.autoAnalyzingInfo = false;
+    this.repoInfo = null;
+    this.repoError = '';
+    this.repoErrorMessage = '';
+    this.isPrivateDetected = false;
+
+    this.latestCommit = null;
+    this.fetchingCommit = false;
+
+    this.loading = false;
+    this.repoStructure = null;
+    this._filteredStructure = null;
+    this.repoPath = '';
+    this.repoName = '';
+    this.owner = '';
+    this.branch = '';
+    this.analyzedCommitSha = '';
+    this.searchQuery = '';
+    this.treeTruncated = false;
+    this.emptyRepo = false;
+    this.expandRevision = 0;
+    this.allExpanded = false;
+    this.justRefreshed = false;
+    this.lastAnalyzedKey = '';
+
+    this.totalFileCount = 0;
+    this.selectedFileCount = 0;
+    this.selectedTotalBytes = 0;
+
+    this.clearOutput();
+    this.generatingText = false;
+    this.actionError = '';
+    this.mobileTab = 'files';
+    this.showTokenModal = false;
+    this.showTokenValue = false;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   parseUrlInput(rawUrl: string): ParsedInputUrl | null {
     const cleaned = rawUrl.trim();
     if (!cleaned) return null;
@@ -214,15 +273,17 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.parseUrlInput(this.repoUrl) !== null;
   }
 
-  useExampleRepo(url: string) {
-    this.repoUrl = url;
-    this.onUrlChange(0);
-  }
-
   clearUrl() {
-    if (this.urlDebounce) clearTimeout(this.urlDebounce);
+    if (this.urlDebounce) {
+      clearTimeout(this.urlDebounce);
+      this.urlDebounce = null;
+    }
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    if (this.autoAnalyzingInfo) {
+      this.loading = false;
+      this.autoAnalyzingInfo = false;
+    }
     this.repoUrl = '';
     this.branchName = '';
     this.branches = [];
@@ -241,6 +302,10 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.urlDebounce) clearTimeout(this.urlDebounce);
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    if (this.autoAnalyzingInfo) {
+      this.loading = false;
+      this.autoAnalyzingInfo = false;
+    }
 
     this.repoError = '';
     this.repoErrorMessage = '';
@@ -285,6 +350,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.repoInfoSub?.unsubscribe();
     this.fetchingBranches = true;
+    this.autoAnalyzingInfo = autoAnalyze;
+    if (autoAnalyze) {
+      this.loading = true;
+    }
     this.repoError = '';
     this.repoErrorMessage = '';
 
@@ -307,6 +376,8 @@ export class AppComponent implements OnInit, OnDestroy {
         this.branchName = matchedHint || res.default_branch;
 
         if (autoAnalyze) {
+          this.loading = false;
+          this.autoAnalyzingInfo = false;
           this.onAnalyze();
         } else {
           this.fetchLatestCommit();
@@ -314,6 +385,10 @@ export class AppComponent implements OnInit, OnDestroy {
       },
       error: err => {
         this.fetchingBranches = false;
+        if (this.autoAnalyzingInfo) {
+          this.loading = false;
+          this.autoAnalyzingInfo = false;
+        }
         this.handleRepoInfoError(err);
       }
     });
@@ -369,7 +444,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  // ── ANALYZE (Refreshes repo info, latest commit, tree, and open bundle) ──
+  // ── ANALYZE (Loads or refreshes tree, preserves custom selections, and auto-generates bundle) ──
   onAnalyze() {
     const parsed = this.parseUrlInput(this.repoUrl);
     if (!parsed || this.loading) return;
@@ -384,7 +459,6 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const targetKey = `${parsed.owner.toLowerCase()}/${parsed.repo.toLowerCase()}#${this.branchName}`;
     const isSameTarget = this.repoStructure !== null && this.lastAnalyzedKey === targetKey;
-    const hadBundle = Boolean(this.finalText);
 
     let prevSelectedPaths: Set<string> | null = null;
     let wasAllSelected = true;
@@ -402,6 +476,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.processSub?.unsubscribe();
 
     this.loading = true;
+    this.generatingText = false;
     this.fetchingCommit = true;
     this.actionError = '';
     this.repoError = '';
@@ -409,11 +484,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.justRefreshed = false;
 
     if (!isSameTarget) {
-      this.finalText = '';
-      this.charCount = 0;
-      this.tokenCount = 0;
-      this.fileCount = 0;
-      this.skippedFiles = [];
+      this.clearOutput();
       this.repoStructure = null;
       this._filteredStructure = null;
       this.mobileTab = 'files';
@@ -438,7 +509,7 @@ export class AppComponent implements OnInit, OnDestroy {
           this.branchName = info.default_branch;
         }
 
-        this.applyAnalysisResult(analysis, targetKey, isSameTarget, wasAllSelected, prevSelectedPaths, hadBundle);
+        this.applyAnalysisResult(analysis, targetKey, isSameTarget, wasAllSelected, prevSelectedPaths);
       },
       error: err => {
         this.loading = false;
@@ -453,8 +524,7 @@ export class AppComponent implements OnInit, OnDestroy {
     targetKey: string,
     isSameTarget: boolean,
     wasAllSelected: boolean,
-    prevSelectedPaths: Set<string> | null,
-    hadBundle: boolean
+    prevSelectedPaths: Set<string> | null
   ) {
     this.repoStructure = res.structure;
     this.repoPath = res.repo_path;
@@ -485,17 +555,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loading = false;
     this.triggerSyncedBadge();
 
-    // When re-analyzing the same repo & branch with an existing bundle open, refresh the code bundle too
-    if (isSameTarget && hadBundle) {
-      if (this.selectedFileCount > 0) {
-        this.generateText(true);
-      } else {
-        this.finalText = '';
-        this.charCount = 0;
-        this.tokenCount = 0;
-        this.fileCount = 0;
-        this.skippedFiles = [];
-      }
+    if (this.selectedFileCount > 0) {
+      this.generateText();
+    } else {
+      this.clearOutput();
     }
   }
 
@@ -641,7 +704,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   // ── GENERATE BUNDLE ──
-  generateText(preserveMobileTab = false) {
+  generateText() {
     if (!this.repoStructure) return;
 
     const files = this.collectFiles(this.repoStructure);
@@ -651,9 +714,10 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     this.processSub?.unsubscribe();
+    this.clearOutput();
     this.generatingText = true;
-    this.showFullPreview = false;
     this.actionError = '';
+    this.mobileTab = 'output';
 
     this.processSub = this.api
       .processFiles(
@@ -673,12 +737,11 @@ export class AppComponent implements OnInit, OnDestroy {
           this.fileCount = res.file_count;
           this.skippedFiles = res.skipped || [];
           this.generatingText = false;
-          if (!preserveMobileTab) {
-            this.mobileTab = 'output';
-          }
+          this.mobileTab = 'output';
         },
         error: err => {
           this.generatingText = false;
+          this.mobileTab = 'files';
           if (err?.status === 413 || err?.error?.code === 'BUNDLE_TOO_LARGE') {
             this.actionError =
               err?.error?.error ||
@@ -691,6 +754,22 @@ export class AppComponent implements OnInit, OnDestroy {
           }
         }
       });
+  }
+
+  private clearOutput() {
+    if (this.copyTimer) {
+      clearTimeout(this.copyTimer);
+      this.copyTimer = null;
+    }
+    this.finalText = '';
+    this.charCount = 0;
+    this.tokenCount = 0;
+    this.fileCount = 0;
+    this.skippedFiles = [];
+    this.copyBtnText = 'Copy';
+    this.copied = false;
+    this.showFullPreview = false;
+    this.isLoadingFullPreview = false;
   }
 
   private collectFiles(nodes: RepoNode[], result: string[] = []): string[] {
