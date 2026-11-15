@@ -82,12 +82,10 @@ body {
   }
 }
 
-/* Transition background/border/color for theme switching */
 body, body * {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.15s ease, box-shadow 0.2s ease;
 }
 
-/* But NOT transition on transforms/opacity for smoother animations */
 button, a {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, transform 0.1s ease !important;
 }
@@ -119,7 +117,7 @@ button, a {
 }
 
 /* ──────────────────────────────────────────────
-   TYPOGRAPHY UTILITIES
+   TYPOGRAPHY & COMPONENT UTILITIES
    ────────────────────────────────────────────── */
 @layer components {
   .text-label {
@@ -127,7 +125,6 @@ button, a {
     color: var(--muted);
   }
 
-  /* ── CARD ── */
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -135,7 +132,6 @@ button, a {
     box-shadow: var(--shadow);
   }
 
-  /* ── INPUT ── */
   .cg-input {
     width: 100%;
     background: var(--card);
@@ -156,7 +152,6 @@ button, a {
     box-shadow: 0 0 0 3px var(--accent-dim);
   }
 
-  /* ── BUTTON PRIMARY ── */
   .btn-primary {
     display: inline-flex;
     align-items: center;
@@ -186,7 +181,6 @@ button, a {
     cursor: not-allowed;
   }
 
-  /* ── BUTTON GHOST ── */
   .btn-ghost {
     display: inline-flex;
     align-items: center;
@@ -207,7 +201,6 @@ button, a {
     color: var(--text);
   }
 
-  /* ── BADGE ── */
   .badge {
     display: inline-flex;
     align-items: center;
@@ -222,7 +215,6 @@ button, a {
     border: 1px solid var(--accent-border);
   }
 
-  /* ── NOISE OVERLAY (dark mode ambiance) ── */
   .noise-bg::before {
     content: '';
     position: fixed;
@@ -233,6 +225,53 @@ button, a {
     background-size: 200px 200px;
     opacity: 0.4;
   }
+}
+
+/* ──────────────────────────────────────────────
+   INTERACTIVE HOVER UTILITIES
+   ────────────────────────────────────────────── */
+.cg-hover-card:hover {
+  background: var(--card) !important;
+}
+
+.cg-hover-accent:hover {
+  background: var(--accent-dim) !important;
+}
+
+.cg-hover-error:hover {
+  background: var(--error-dim) !important;
+}
+
+.cg-link-muted {
+  color: var(--muted);
+}
+.cg-link-muted:hover {
+  color: var(--text);
+}
+
+.cg-commit-link {
+  color: var(--accent);
+}
+.cg-commit-link:hover {
+  color: var(--accent-hover);
+}
+
+.cg-copy-btn {
+  background: var(--surface);
+  border-width: 1px;
+  border-style: solid;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  backdrop-filter: blur(4px);
+}
+.cg-copy-btn:hover:not(.copied) {
+  background: var(--card);
+}
+
+.cg-mark {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border-radius: 3px;
+  padding: 0 2px;
 }
 
 /* ──────────────────────────────────────────────
@@ -300,7 +339,7 @@ input[type="checkbox"].cg-check:indeterminate::after {
 }
 
 /* ──────────────────────────────────────────────
-   TREE NODE HOVER FIX
+   TREE NODE HOVER
    ────────────────────────────────────────────── */
 .tree-row:hover {
   background: var(--card);

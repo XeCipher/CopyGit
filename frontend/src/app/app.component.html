@@ -1,7 +1,7 @@
 <!-- Root wrapper — fixed layout bounds on desktop -->
 <div class="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col" style="background: var(--bg); color: var(--text); font-family: 'Sora', sans-serif;">
 
-  <!-- ── AMBIENT GLOW (dark only) ─────────────────────────── -->
+  <!-- ── AMBIENT GLOW ─────────────────────────────────────── -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
     <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-[140px]"
          style="background: radial-gradient(ellipse, rgba(109,89,240,0.07) 0%, transparent 70%);">
@@ -16,11 +16,10 @@
        ═══════════════════════════════════════════════════════ -->
   <header class="sticky top-0 z-40 backdrop-blur-xl flex-shrink-0"
           style="background: var(--bg); border-bottom: 1px solid var(--border-subtle);">
-    <div class="max-w-7xl mx-auto px-5 h-14 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between">
 
       <!-- Logo + Brand -->
       <div class="flex items-center gap-3">
-        <!-- SVG Logo -->
         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
              style="background: linear-gradient(135deg, #6d59f0 0%, #a855f7 100%); box-shadow: 0 2px 8px rgba(109,89,240,0.35);">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -43,13 +42,11 @@
       <div class="flex items-center gap-1.5">
 
         <!-- Token button -->
-        <button (click)="showTokenModal = true" class="btn-ghost flex items-center gap-1.5">
-          <!-- Key icon -->
+        <button (click)="showTokenModal = true" class="btn-ghost flex items-center gap-1.5" title="Configure GitHub Access Token">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/>
           </svg>
           <span class="hidden sm:inline">Token</span>
-          <!-- Green dot if token saved -->
           <span *ngIf="tokenSaved"
                 class="w-1.5 h-1.5 rounded-full ml-0.5"
                 style="background: var(--success); box-shadow: 0 0 4px var(--success);"
@@ -57,22 +54,19 @@
         </button>
 
         <!-- GitHub link -->
-        <a href="https://github.com/XeCipher/CopyGit" target="_blank" class="btn-ghost" title="View on GitHub" aria-label="GitHub">
+        <a href="https://github.com/XeCipher/CopyGit" target="_blank" rel="noopener noreferrer" class="btn-ghost" title="View on GitHub" aria-label="GitHub">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
         </a>
 
-        <!-- Divider -->
         <div class="w-px h-5 mx-1" style="background: var(--border)"></div>
 
         <!-- Theme toggle -->
-        <button (click)="toggleTheme()" class="btn-ghost" [title]="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
-          <!-- Sun (light mode icon) -->
+        <button (click)="toggleTheme()" class="btn-ghost" [title]="isDark ? 'Switch to light mode' : 'Switch to dark mode'" [attr.aria-label]="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
           <svg *ngIf="isDark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
           </svg>
-          <!-- Moon (dark mode icon) -->
           <svg *ngIf="!isDark" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
           </svg>
@@ -84,7 +78,7 @@
   <!-- ═══════════════════════════════════════════════════════
        MAIN CONTENT
        ═══════════════════════════════════════════════════════ -->
-  <main class="relative w-full max-w-7xl mx-auto px-4 sm:px-5 py-4 flex flex-col flex-1 lg:overflow-hidden">
+  <main class="relative w-full max-w-7xl mx-auto px-4 sm:px-5 py-4 flex flex-col flex-1 min-h-0 lg:overflow-hidden">
 
     <!-- ── HERO (visible before repo loaded) ───────────────── -->
     <div *ngIf="!repoStructure" class="text-center mb-6 mt-2 md:mt-6 animate-fade-in flex-shrink-0">
@@ -103,7 +97,7 @@
 
       <!-- Feature pills -->
       <div class="flex flex-wrap justify-center gap-2 mt-4">
-        <span *ngFor="let feat of['Select specific files', 'Public & private repos', 'All branches', 'Download or copy', 'Token count', 'AI-optimized format']"
+        <span *ngFor="let feat of ['Select specific files', 'Public & private repos', 'All branches', 'Download or copy', 'Token count', 'AI-optimized format']"
               class="text-[11px] px-2.5 py-0.5 rounded-full"
               style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
           {{ feat }}
@@ -112,12 +106,12 @@
     </div>
 
     <!-- ── INPUT SECTION ─────────────────────────────────────── -->
-    <section class="card p-4 md:p-5 mb-4 flex-shrink-0" [class.animate-fade-in]="true">
+    <section class="card p-3.5 sm:p-4 md:p-5 mb-4 flex-shrink-0 animate-fade-in">
 
       <!-- Main input row -->
-      <div class="flex flex-col sm:flex-row gap-3">
+      <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
 
-        <!-- URL Input with GitHub icon -->
+        <!-- URL Input -->
         <div class="flex-1 relative">
           <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--muted)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -129,53 +123,93 @@
             name="repoUrl"
             [(ngModel)]="repoUrl"
             (input)="onUrlChange()"
+            (paste)="onUrlPaste()"
+            (keydown.enter)="onUrlEnter()"
             placeholder="https://github.com/username/repository"
             class="cg-input"
             style="padding-left: 2.5rem;"
+            [style.padding-right]="repoUrl ? '2.25rem' : '1rem'"
             spellcheck="false"
+            autocomplete="off"
           />
-        </div>
-
-        <!-- Branch selector -->
-        <div class="relative w-full sm:w-48 flex-shrink-0">
-          <select [(ngModel)]="branchName"
-            (ngModelChange)="onBranchChange()"
-            [disabled]="branches.length === 0"
-            class="cg-select"
-            [style.opacity]="branches.length === 0 ? 0.5 : 1">
-            <option *ngIf="branches.length === 0" value="">
-              {{ fetchingBranches ? 'Loading...' : 'Branch' }}
-            </option>
-            <option *ngFor="let b of branches" [value]="b">{{ b }}</option>
-          </select>
-          <!-- Arrow icon -->
-          <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--muted)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="6 9 12 15 18 9"></polyline>
+          <button
+            *ngIf="repoUrl"
+            type="button"
+            (click)="clearUrl()"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center cg-hover-card"
+            style="color: var(--muted);"
+            title="Clear URL"
+            aria-label="Clear URL">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
-          </div>
-          <!-- Spinner overlay -->
-          <div *ngIf="fetchingBranches" class="absolute right-3 top-1/2 -translate-y-1/2">
-            <div class="spinner" style="width:14px; height:14px;"></div>
-          </div>
+          </button>
         </div>
 
-        <!-- Inside the Analyze button -->
+        <!-- Branch + Analyze row on mobile, inline on sm+ -->
+        <div class="flex gap-2.5 sm:gap-3">
+          <!-- Branch selector -->
+          <div class="relative flex-1 sm:w-48 sm:flex-none">
+            <select
+              [(ngModel)]="branchName"
+              (ngModelChange)="onBranchChange()"
+              [disabled]="branches.length === 0"
+              aria-label="Select branch"
+              class="cg-select"
+              [style.opacity]="branches.length === 0 ? 0.55 : 1">
+              <option *ngIf="branches.length === 0" value="">
+                {{ fetchingBranches ? 'Loading...' : 'Branch' }}
+              </option>
+              <option *ngFor="let b of branches" [value]="b">{{ b }}</option>
+            </select>
+            <div *ngIf="!fetchingBranches" class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--muted)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <div *ngIf="fetchingBranches" class="absolute right-3 top-1/2 -translate-y-1/2">
+              <div class="spinner" style="width:14px; height:14px;"></div>
+            </div>
+          </div>
+
+          <!-- Analyze / Refresh button -->
+          <button
+            (click)="onAnalyze()"
+            [disabled]="loading || !isUrlValid"
+            class="btn-primary flex-shrink-0 min-w-[112px]">
+            <div *ngIf="loading" class="spinner" style="width:14px; height:14px; border-color: rgba(255,255,255,0.3); border-top-color: white;"></div>
+            <svg *ngIf="!loading && !repoStructure" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <svg *ngIf="!loading && repoStructure" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+            {{ loading ? (repoStructure ? 'Refreshing…' : 'Analyzing…') : 'Analyze' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick sample repos when empty -->
+      <div *ngIf="!repoStructure && !repoUrl && !repoInfo" class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span style="color: var(--muted)">Try:</span>
         <button
-          (click)="onAnalyze()"
-          [disabled]="loading || !repoUrl || !branchName || repoError === 'not_found' || repoError === 'unknown'"
-          class="btn-primary flex-shrink-0 min-w-[110px]">
-          <div *ngIf="loading" class="spinner" style="width:14px; height:14px; border-color: rgba(255,255,255,0.3); border-top-color: white;"></div>
-          <svg *ngIf="!loading" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          {{ loading ? 'Analyzing…' : 'Analyze' }}
+          type="button"
+          (click)="useExampleRepo('https://github.com/XeCipher/CopyGit')"
+          class="px-2 py-0.5 rounded-md font-mono text-[11px] cg-hover-card"
+          style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
+          XeCipher/CopyGit
+        </button>
+        <button
+          type="button"
+          (click)="useExampleRepo('https://github.com/honojs/hono')"
+          class="px-2 py-0.5 rounded-md font-mono text-[11px] cg-hover-card"
+          style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
+          honojs/hono
         </button>
       </div>
 
       <!-- ── REPO INFO BAR ── -->
-      <div *ngIf="repoInfo && !repoError" class="mt-3 flex flex-wrap items-center gap-3 animate-fade-in">
-        <!-- Repo name -->
+      <div *ngIf="repoInfo && !repoError" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 animate-fade-in">
         <div class="flex items-center gap-2">
           <span class="text-sm font-semibold" style="color: var(--text)">{{ repoInfo.full_name }}</span>
           <span *ngIf="repoInfo.private"
@@ -184,60 +218,68 @@
             PRIVATE
           </span>
         </div>
-        <!-- Description -->
-        <span *ngIf="repoInfo.description" class="text-xs hidden md:block" style="color: var(--muted)">
+
+        <span *ngIf="repoInfo.description" class="text-xs hidden md:block truncate max-w-xl" style="color: var(--muted)" [title]="repoInfo.description">
           {{ repoInfo.description }}
         </span>
-        <!-- Stars -->
-        <div *ngIf="repoInfo.stars > 0" class="flex items-center gap-1 text-xs ml-auto" style="color: var(--muted)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: #eab308;">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-          </svg>
-          {{ formatNum(repoInfo.stars) }}
+
+        <div class="flex items-center gap-2 ml-auto">
+          <span *ngIf="justRefreshed"
+                class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded animate-fade-in"
+                style="background: var(--success-dim); color: var(--success);">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Synced
+          </span>
+
+          <div *ngIf="repoInfo.stars > 0" class="flex items-center gap-1 text-xs" style="color: var(--muted)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="color: #eab308;">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+            {{ formatNum(repoInfo.stars) }}
+          </div>
+
+          <span *ngIf="repoInfo.language" class="text-xs px-2 py-0.5 rounded"
+                style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
+            {{ repoInfo.language }}
+          </span>
         </div>
-        <!-- Language -->
-        <span *ngIf="repoInfo.language" class="text-xs px-2 py-0.5 rounded"
-              style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
-          {{ repoInfo.language }}
-        </span>
       </div>
 
       <!-- ── LATEST COMMIT BAR ── -->
-      <div *ngIf="(latestCommit || fetchingCommit) && repoInfo && !repoError" class="mt-3 flex items-center gap-3 p-2.5 px-3 rounded-xl border animate-fade-in"
+      <div *ngIf="(latestCommit || fetchingCommit) && repoInfo && !repoError"
+           class="mt-3 flex items-center gap-3 p-2.5 px-3 rounded-xl border animate-fade-in"
            style="background: var(--card); border-color: var(--border);">
-        <!-- Branch / Git icon -->
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" style="color: var(--muted)">
           <circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/>
         </svg>
 
-        <!-- Commit Data -->
-        <div *ngIf="latestCommit" class="flex-1 flex flex-wrap items-center gap-2 text-xs overflow-hidden">
+        <div *ngIf="latestCommit && !latestCommit.empty" class="flex-1 flex flex-wrap items-center gap-2 text-xs overflow-hidden min-w-0">
           <a [href]="latestCommit.html_url" target="_blank" rel="noopener noreferrer"
-             class="font-mono font-semibold transition-colors flex-shrink-0"
-             style="color: var(--accent);"
-             onmouseover="this.style.color='var(--accent-hover)'"
-             onmouseout="this.style.color='var(--accent)'"
+             class="font-mono font-semibold flex-shrink-0 cg-commit-link"
              title="View commit on GitHub">
             {{ latestCommit.sha | slice:0:7 }}
           </a>
           <span style="color: var(--border)">·</span>
 
-          <span class="truncate flex-1 min-w-[100px]" style="color: var(--text)" [title]="latestCommit.message">
+          <span class="truncate flex-1 min-w-[120px]" style="color: var(--text)" [title]="latestCommit.message">
             {{ latestCommit.message }}
           </span>
 
-          <!-- Author and Date (Hidden on mobile) -->
           <span class="hidden sm:inline flex-shrink-0" style="color: var(--muted)">
             by {{ latestCommit.author }} on {{ latestCommit.date | date:'MMM d, yyyy' }}
           </span>
         </div>
 
-        <!-- Skeleton / Fetching state -->
+        <div *ngIf="latestCommit?.empty" class="flex-1 text-xs" style="color: var(--muted)">
+          {{ latestCommit?.message }}
+        </div>
+
         <div *ngIf="fetchingCommit && !latestCommit" class="flex-1 flex items-center gap-2 text-xs">
           <span style="color: var(--muted)">Fetching latest commit...</span>
         </div>
 
-        <!-- Loading spinner attached to the commit bar -->
         <div *ngIf="fetchingCommit" class="spinner flex-shrink-0" style="width:13px; height:13px; border-width: 1.5px;"></div>
       </div>
 
@@ -251,7 +293,7 @@
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
           </svg>
           <div>
-            <p class="text-sm font-semibold" style="color: var(--warning)">Private repository detected</p>
+            <p class="text-sm font-semibold" style="color: var(--warning)">Private repository or not found</p>
             <p class="text-xs mt-0.5" style="color: var(--text-secondary)">Add a GitHub Personal Access Token to access private repos. Your token is stored only in your browser.</p>
           </div>
         </div>
@@ -274,8 +316,8 @@
           <div>
             <p class="text-sm font-semibold" style="color: var(--error)">Token missing permissions</p>
             <p class="text-xs mt-0.5 leading-relaxed" style="color: var(--text-secondary)">
-              Your token is valid but cannot read this repository. In GitHub, edit your token and ensure 
-              <strong>Repository access</strong> is set to <strong>All repositories</strong>, and 
+              Your token is valid but cannot read this repository. Ensure
+              <strong>Repository access</strong> includes this repository, and
               <strong>Contents</strong> is set to <strong>Read-only</strong>.
             </p>
           </div>
@@ -300,48 +342,102 @@
       </div>
 
       <!-- Rate limited -->
-      <div *ngIf="repoError === 'rate_limited'" class="mt-3 rounded-xl p-4 animate-slide-down flex items-center gap-3"
+      <div *ngIf="repoError === 'rate_limited'" class="mt-3 rounded-xl p-4 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-3"
            style="background: var(--warning-dim); border: 1px solid var(--warning-border);">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warning); flex-shrink: 0;">
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        <div class="flex items-start gap-2.5 flex-1">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mt-0.5 flex-shrink-0" style="color: var(--warning);">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <p class="text-xs sm:text-sm" style="color: var(--text)">
+            <strong style="color: var(--warning)">GitHub rate limit reached.</strong>
+            <span style="color: var(--text-secondary)"> {{ repoErrorMessage || 'Add a token to increase your limit (5,000 req/hr vs 60/hr).' }}</span>
+          </p>
+        </div>
+        <button (click)="showTokenModal = true" class="text-xs font-semibold flex-shrink-0 self-end sm:self-center" style="color: var(--accent);">Add Token →</button>
+      </div>
+
+      <!-- Not found / Forbidden / Unknown error -->
+      <div *ngIf="repoError === 'not_found' || repoError === 'forbidden' || repoError === 'unknown'"
+           class="mt-3 rounded-xl p-3.5 animate-slide-down flex items-center gap-3"
+           style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--error); flex-shrink: 0;">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <p class="text-sm flex-1" style="color: var(--text)">
-          <strong style="color: var(--warning)">GitHub rate limit reached.</strong>
-          <span style="color: var(--text-secondary)"> Add a token to increase your limit (5,000 req/hr vs 60/hr).</span>
+        <p class="text-xs sm:text-sm flex-1" style="color: var(--text-secondary);">
+          <strong style="color: var(--error)">Error:</strong> {{ repoErrorMessage || 'Unable to access repository. Check the URL and try again.' }}
         </p>
-        <button (click)="showTokenModal = true" class="text-xs font-semibold" style="color: var(--accent);">Add Token →</button>
+      </div>
+
+      <!-- Action / Bundle inline error banner -->
+      <div *ngIf="actionError"
+           class="mt-3 rounded-xl p-3.5 animate-slide-down flex items-center gap-3"
+           style="background: var(--error-dim); border: 1px solid rgba(220,38,38,0.2);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--error); flex-shrink: 0;">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p class="text-xs sm:text-sm flex-1" style="color: var(--text-secondary);">{{ actionError }}</p>
+        <button (click)="actionError = ''" class="text-xs font-semibold flex-shrink-0" style="color: var(--error)" aria-label="Dismiss error">✕</button>
       </div>
     </section>
 
+    <!-- ── MOBILE WORKSPACE TABS (< lg only) ────────────────── -->
+    <div *ngIf="repoStructure" class="flex lg:hidden gap-1.5 p-1 rounded-xl mb-3 flex-shrink-0"
+         style="background: var(--card); border: 1px solid var(--border);">
+      <button
+        type="button"
+        (click)="mobileTab = 'files'"
+        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+        [style.background]="mobileTab === 'files' ? 'var(--surface)' : 'transparent'"
+        [style.color]="mobileTab === 'files' ? 'var(--text)' : 'var(--muted)'"
+        [style.boxShadow]="mobileTab === 'files' ? 'var(--shadow)' : 'none'">
+        <span>Files</span>
+        <span class="badge">{{ selectedFileCount }}</span>
+      </button>
+      <button
+        type="button"
+        (click)="mobileTab = 'output'"
+        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+        [style.background]="mobileTab === 'output' ? 'var(--surface)' : 'transparent'"
+        [style.color]="mobileTab === 'output' ? 'var(--text)' : 'var(--muted)'"
+        [style.boxShadow]="mobileTab === 'output' ? 'var(--shadow)' : 'none'">
+        <span>Bundle Output</span>
+        <span *ngIf="finalText" class="w-1.5 h-1.5 rounded-full" style="background: var(--success);"></span>
+      </button>
+    </div>
+
     <!-- ── RESULTS SECTION ── -->
-    <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 lg:overflow-hidden animate-slide-up">
+    <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 lg:overflow-hidden animate-slide-up">
 
       <!-- ── TREE PANEL ── -->
-      <div class="lg:col-span-4 card flex flex-col h-[450px] lg:h-full overflow-hidden">
+      <div class="lg:col-span-4 card flex-col h-[58vh] min-h-[380px] lg:h-full overflow-hidden"
+           [ngClass]="mobileTab === 'files' ? 'flex' : 'hidden lg:flex'">
 
         <!-- Tree header -->
         <div class="px-4 pt-3.5 pb-2.5 flex-shrink-0" style="border-bottom: 1px solid var(--border-subtle);">
 
           <!-- Title row -->
-          <div class="flex items-center justify-between mb-2.5">
-            <div class="flex items-center gap-2">
+          <div class="flex items-center justify-between gap-2 mb-2.5">
+            <div class="flex items-center gap-2 min-w-0">
               <span class="text-sm font-semibold" style="color: var(--text)">Files</span>
-              <span class="badge">{{ selectedFileCount }} selected</span>
+              <span class="badge">{{ selectedFileCount }}<span *ngIf="selectedTotalBytes > 0" class="opacity-75">· {{ formatBytes(selectedTotalBytes) }}</span></span>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <button (click)="toggleExpandAll()"
+                      class="text-[11px] font-medium px-1.5 py-0.5 rounded cg-hover-card"
+                      style="color: var(--muted);"
+                      [title]="allExpanded ? 'Collapse all folders' : 'Expand all folders'">
+                {{ allExpanded ? 'Collapse' : 'Expand' }}
+              </button>
+              <span style="color: var(--border)">·</span>
               <button (click)="selectAll(true)"
-                      class="text-[11px] font-semibold px-2 py-0.5 rounded transition-colors"
-                      style="color: var(--accent);"
-                      onmouseover="this.style.background='var(--accent-dim)'"
-                      onmouseout="this.style.background='transparent'">
+                      class="text-[11px] font-semibold px-1.5 py-0.5 rounded cg-hover-accent"
+                      style="color: var(--accent);">
                 All
               </button>
               <span style="color: var(--border)">·</span>
               <button (click)="selectAll(false)"
-                      class="text-[11px] font-semibold px-2 py-0.5 rounded transition-colors"
-                      style="color: var(--muted);"
-                      onmouseover="this.style.background='var(--card)'"
-                      onmouseout="this.style.background='transparent'">
+                      class="text-[11px] font-semibold px-1.5 py-0.5 rounded cg-hover-card"
+                      style="color: var(--muted);">
                 None
               </button>
             </div>
@@ -363,6 +459,11 @@
               style="padding-left: 2rem; padding-top: 0.45rem; padding-bottom: 0.45rem; font-family: 'JetBrains Mono', monospace;"
             />
           </div>
+
+          <!-- Warnings for truncated/empty trees -->
+          <p *ngIf="treeTruncated" class="mt-2 text-[11px] leading-snug" style="color: var(--warning);">
+            Large repository: GitHub truncated the tree listing beyond 100,000 entries.
+          </p>
         </div>
 
         <!-- Tree scroll area -->
@@ -373,6 +474,7 @@
               [node]="node"
               [depth]="0"
               [searchQuery]="searchQuery"
+              [expandRevision]="expandRevision"
               (selectionChange)="onChildSelectionChange()">
             </app-tree-node>
           </ng-container>
@@ -382,7 +484,9 @@
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 opacity-50">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
               </svg>
-              <p class="text-xs">No files match "{{ searchQuery }}"</p>
+              <p class="text-xs" *ngIf="emptyRepo">This repository is empty (no commits yet).</p>
+              <p class="text-xs" *ngIf="!emptyRepo && searchQuery">No files match "{{ searchQuery }}"</p>
+              <p class="text-xs" *ngIf="!emptyRepo && !searchQuery">No selectable source files found.</p>
             </div>
           </ng-template>
         </div>
@@ -403,7 +507,8 @@
       </div>
 
       <!-- ── OUTPUT PANEL ── -->
-      <div class="lg:col-span-8 flex flex-col gap-2.5 h-[450px] lg:h-full overflow-hidden">
+      <div class="lg:col-span-8 flex-col gap-2.5 h-[58vh] min-h-[380px] lg:h-full overflow-hidden"
+           [ngClass]="mobileTab === 'output' ? 'flex' : 'hidden lg:flex'">
 
         <!-- Stats bar -->
         <div *ngIf="finalText" class="flex items-center gap-2 flex-wrap flex-shrink-0 animate-fade-in">
@@ -425,6 +530,12 @@
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
             {{ fileCount }} files
+          </span>
+          <span *ngIf="skippedFiles.length > 0"
+                class="text-[11px] px-2 py-0.5 rounded font-medium"
+                style="background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning-border);"
+                [title]="skippedFiles.join(', ')">
+            {{ skippedFiles.length }} binary skipped
           </span>
 
           <!-- Right: actions -->
@@ -456,19 +567,18 @@
 
         <!-- Output textarea wrapper -->
         <div class="relative flex-1 overflow-hidden min-h-0">
-
-          <!-- Textarea -->
           <textarea
             *ngIf="finalText"
             readonly
             [value]="previewText"
-            class="w-full h-full rounded-2xl p-5 text-xs leading-relaxed resize-none outline-none"
+            aria-label="Generated code bundle"
+            class="w-full h-full rounded-2xl p-4 sm:p-5 text-xs leading-relaxed resize-none outline-none"
             style="background: var(--surface); border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; color: var(--text-secondary); box-shadow: var(--shadow);">
           </textarea>
 
           <!-- Empty state -->
           <div *ngIf="!finalText"
-               class="w-full h-full rounded-2xl flex flex-col items-center justify-center text-center p-8"
+               class="w-full h-full rounded-2xl flex flex-col items-center justify-center text-center p-6 sm:p-8"
                style="background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);">
             <div class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                  style="background: var(--accent-dim);">
@@ -478,7 +588,7 @@
             </div>
             <p class="text-sm font-semibold mb-1.5" style="color: var(--text)">Ready to generate</p>
             <p class="text-xs max-w-xs" style="color: var(--muted); line-height: 1.6;">
-              Select files from the tree on the left, then click <strong style="color: var(--text)">Generate Bundle</strong> to create your AI-ready code context.
+              Select files from the tree, then click <strong style="color: var(--text)">Generate Bundle</strong> to create your AI-ready code context.
             </p>
           </div>
 
@@ -486,17 +596,13 @@
           <button
             *ngIf="finalText"
             (click)="copyToClipboard()"
-            class="absolute top-3.5 right-3.5 flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg transition-all z-10"[class.copied]="copied"
-            [style.background]="'var(--surface)'"[style.color]="copied ? 'var(--success)' : 'var(--text-secondary)'"
-            [style.borderColor]="copied ? 'var(--success)' : 'var(--border)'"
-            style="border-width: 1px; border-style: solid; box-shadow: 0 2px 4px rgba(0,0,0,0.05); backdrop-filter: blur(4px);"
-            onmouseover="if(!this.classList.contains('copied')) this.style.background='var(--card)'"
-            onmouseout="this.style.background='var(--surface)'">
-            <!-- Copy icon -->
+            class="cg-copy-btn absolute top-3.5 right-3.5 flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg z-10"
+            [class.copied]="copied"
+            [style.color]="copied ? 'var(--success)' : 'var(--text-secondary)'"
+            [style.borderColor]="copied ? 'var(--success)' : 'var(--border)'">
             <svg *ngIf="!copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
             </svg>
-            <!-- Check icon -->
             <svg *ngIf="copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
@@ -516,7 +622,7 @@
   <footer class="py-3 flex-shrink-0 text-center lg:py-2">
     <p class="text-[11px]" style="color: var(--muted)">
       Built with Angular · Deployed on Vercel ·
-      <a href="https://github.com/XeCipher/CopyGit" class="underline transition-colors" style="color: var(--muted)" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">View source</a>
+      <a href="https://github.com/XeCipher/CopyGit" target="_blank" rel="noopener noreferrer" class="underline cg-link-muted">View source</a>
     </p>
   </footer>
 
@@ -530,16 +636,15 @@
      style="background: rgba(0,0,0,0.6);"
      (click)="showTokenModal = false">
 
-  <div class="modal-panel w-full max-w-md rounded-2xl p-6 relative"
+  <div class="modal-panel w-full max-w-md rounded-2xl p-5 sm:p-6 relative max-h-[90vh] overflow-y-auto"
        style="background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg);"
        (click)="$event.stopPropagation()">
 
     <!-- Close button -->
     <button (click)="showTokenModal = false"
-            class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
+            class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg cg-hover-card"
             style="color: var(--muted);"
-            onmouseover="this.style.background='var(--card)'"
-            onmouseout="this.style.background='transparent'">
+            aria-label="Close modal">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
@@ -561,12 +666,26 @@
 
     <!-- Steps -->
     <ol class="space-y-2.5 mb-5">
-      <li *ngFor="let step of tokenSteps; let i = index" class="flex gap-3">
+      <li class="flex gap-3">
         <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
-              style="background: var(--accent-dim); color: var(--accent);">
-          {{ i + 1 }}
-        </span>
-        <p class="text-xs leading-relaxed step-text" style="color: var(--text-secondary);" [innerHTML]="step"></p>
+              style="background: var(--accent-dim); color: var(--accent);">1</span>
+        <p class="text-xs leading-relaxed step-text" style="color: var(--text-secondary);">
+          Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">GitHub Token Settings</a> to create a new <strong>Fine-grained token</strong>.
+        </p>
+      </li>
+      <li class="flex gap-3">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
+              style="background: var(--accent-dim); color: var(--accent);">2</span>
+        <p class="text-xs leading-relaxed step-text" style="color: var(--text-secondary);">
+          Set <em>Repository access</em> to <strong>All repositories</strong>. Then, under <em>Repository permissions</em>, set <strong>Contents</strong> to <strong>Read-only</strong>.
+        </p>
+      </li>
+      <li class="flex gap-3">
+        <span class="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5"
+              style="background: var(--accent-dim); color: var(--accent);">3</span>
+        <p class="text-xs leading-relaxed step-text" style="color: var(--text-secondary);">
+          Click <strong>Generate token</strong> at the bottom, then copy and paste it here.
+        </p>
       </li>
     </ol>
 
@@ -577,7 +696,7 @@
         <input
           [type]="showTokenValue ? 'text' : 'password'"
           [(ngModel)]="githubToken"
-          placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          placeholder="github_pat_..."
           class="cg-input pr-10 font-mono text-xs"
           style="font-family: 'JetBrains Mono', monospace; letter-spacing: 0.02em;"
           (keydown.enter)="saveToken()"
@@ -586,12 +705,11 @@
           (click)="showTokenValue = !showTokenValue"
           class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
           style="color: var(--muted);"
-          type="button">
-          <!-- Eye -->
+          type="button"
+          [attr.aria-label]="showTokenValue ? 'Hide token' : 'Show token'">
           <svg *ngIf="!showTokenValue" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
           </svg>
-          <!-- Eye-off -->
           <svg *ngIf="showTokenValue" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>
           </svg>
@@ -606,7 +724,7 @@
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
       <p style="color: var(--text-secondary); line-height: 1.55;">
-        Your token is stored <strong style="color: var(--text)">only in your browser's local storage</strong> and is sent directly to GitHub's API. It is never stored on our servers.
+        Your token is stored <strong style="color: var(--text)">only in your browser's local storage</strong> and is forwarded directly to GitHub's API. It is never logged or persisted on our servers.
       </p>
     </div>
 
@@ -624,10 +742,8 @@
 
       <button *ngIf="tokenSaved"
               (click)="clearToken()"
-              class="btn-ghost text-sm px-4"
-              style="color: var(--error); border-color: rgba(220,38,38,0.2);"
-              onmouseover="this.style.background='var(--error-dim)'"
-              onmouseout="this.style.background='transparent'">
+              class="btn-ghost text-sm px-4 cg-hover-error"
+              style="color: var(--error); border-color: rgba(220,38,38,0.2);">
         Clear
       </button>
 

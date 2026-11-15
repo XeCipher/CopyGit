@@ -1,57 +1,98 @@
+import {
+  parseBody,
+  parseGitHubUrl,
+  getActiveToken,
+  buildGitHubHeaders,
+  setNoCacheHeaders,
+  safeJson,
+  isRateLimitResponse,
+  formatRateLimitError
+} from './_github.js';
+
+const branchCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  setNoCacheHeaders(res);
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-  const { url: repoUrl, token } = req.body || {};
-  if (!repoUrl) return res.status(400).json({ error: 'Invalid URL', code: 'INVALID_URL' });
+  const { url: repoUrl, token } = parseBody(req);
+  const parsed = parseGitHubUrl(repoUrl);
+  if (!parsed) {
+    return res.status(400).json({ error: 'Invalid GitHub repository URL.', code: 'INVALID_URL' });
+  }
 
-  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/.?#]+)/);
-  if (!match) return res.status(400).json({ error: 'Invalid URL', code: 'INVALID_URL' });
-
-  const [, owner, repo] = match;
-  
-  // Use user token, or fallback to your backend token for higher rate limits
-  const activeToken = token?.trim() || process.env.GITHUB_BACKEND_TOKEN?.trim();
-
-  const headers = {
-    'Accept': 'application/vnd.github.v3+json',
-    'User-Agent': 'CopyGit-Serverless/1.0'
-  };
-  
-  if (activeToken) headers['Authorization'] = `Bearer ${activeToken}`;
+  const { owner, repo } = parsed;
+  const { token: activeToken } = getActiveToken(token);
+  const headers = buildGitHubHeaders(activeToken);
+  const baseRepoUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
   try {
-    const repoResp = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
-    
-    if (repoResp.status === 401) return res.status(401).json({ error: 'Invalid token', code: 'INVALID_TOKEN' });
-    if (repoResp.status === 403) return res.status(429).json({ error: 'Rate limit exceeded', code: 'RATE_LIMITED' });
-    if (repoResp.status === 404) return res.status(404).json({ error: 'Repo not found or private.', code: 'PRIVATE_OR_LACKS_PERMISSION' });
-    if (!repoResp.ok) return res.status(502).json({ error: 'GitHub API error', code: 'API_ERROR' });
+    // Fetch repository metadata and branch list concurrently to cut latency
+    const [repoResp, branchesResp] = await Promise.all([
+      fetch(baseRepoUrl, { headers }),
+      fetch(`${baseRepoUrl}/branches?per_page=100`, { headers })
+    ]);
+
+    if (repoResp.status === 401) {
+      return res.status(401).json({ error: 'Invalid or expired GitHub token.', code: 'INVALID_TOKEN' });
+    }
+
+    if (!repoResp.ok) {
+      const errBody = await safeJson(repoResp);
+      if (isRateLimitResponse(repoResp, errBody)) {
+        return res.status(429).json({
+          error: formatRateLimitError(repoResp),
+          code: 'RATE_LIMITED'
+        });
+      }
+      if (repoResp.status === 403) {
+        return res.status(403).json({
+          error: errBody?.message || 'Access to this repository is forbidden.',
+          code: 'FORBIDDEN'
+        });
+      }
+      if (repoResp.status === 404) {
+        return res.status(404).json({
+          error: 'Repository not found or private.',
+          code: 'PRIVATE_OR_LACKS_PERMISSION'
+        });
+      }
+      return res.status(502).json({ error: 'GitHub API error.', code: 'API_ERROR' });
+    }
 
     const repoData = await repoResp.json();
     const defaultBranch = repoData.default_branch || 'main';
 
-    const branchesResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`, { headers });
-    let branches =[];
+    let branches = [];
     if (branchesResp.ok) {
       const branchesData = await branchesResp.json();
-      branches = branchesData.map(b => b.name);
+      if (Array.isArray(branchesData)) {
+        branches = branchesData.map(b => b.name).filter(Boolean);
+      }
     }
 
-    if (!branches.includes(defaultBranch)) branches.unshift(defaultBranch);
+    // Keep default branch first, then sort remaining branches naturally
+    const uniqueOtherBranches = Array.from(new Set(branches))
+      .filter(b => b !== defaultBranch)
+      .sort((a, b) => branchCollator.compare(a, b));
+
+    const sortedBranches = [defaultBranch, ...uniqueOtherBranches];
 
     return res.status(200).json({
       default_branch: defaultBranch,
-      branches: Array.from(new Set(branches)).sort(),
+      branches: sortedBranches,
       repo_name: repoData.name,
       full_name: repoData.full_name,
-      owner: owner,
-      private: repoData.private,
+      owner: repoData.owner?.login || owner,
+      private: Boolean(repoData.private),
       description: repoData.description || '',
       stars: repoData.stargazers_count || 0,
       language: repoData.language || '',
-      size_kb: repoData.size || 0,
+      size_kb: repoData.size || 0
     });
   } catch (error) {
-    return res.status(500).json({ error: error.message, code: 'UNKNOWN' });
+    return res.status(500).json({ error: error?.message || 'Unexpected server error.', code: 'UNKNOWN' });
   }
 }

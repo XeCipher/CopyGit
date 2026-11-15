@@ -11,6 +11,9 @@ export interface RepoNode {
   selected?: boolean;
   size?: number;
   expanded?: boolean;
+  fileCount?: number;
+  selectedCount?: number;
+  selectedSize?: number;
 }
 
 export interface RepoInfo {
@@ -27,11 +30,33 @@ export interface RepoInfo {
 }
 
 export interface CommitInfo {
+  empty?: boolean;
   sha: string;
+  tree_sha?: string;
   message: string;
   author: string;
   date: string;
   html_url: string;
+}
+
+export interface AnalyzeResponse {
+  structure: RepoNode[];
+  repo_path: string;
+  repo_name: string;
+  owner: string;
+  branch: string;
+  commit_sha: string;
+  latest_commit: CommitInfo | null;
+  truncated?: boolean;
+  total_files?: number;
+  empty?: boolean;
+}
+
+export interface ProcessResponse {
+  full_text: string;
+  file_count: number;
+  selected_count?: number;
+  skipped: string[];
 }
 
 @Injectable({
@@ -50,17 +75,25 @@ export class ApiService {
     return this.http.post<CommitInfo>(`${this.baseUrl}/latest-commit`, { url, branch, token: token || '' });
   }
 
-  analyzeRepo(url: string, branch: string, token?: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/analyze`, { url, branch, token: token || '' });
+  analyzeRepo(url: string, branch: string, token?: string): Observable<AnalyzeResponse> {
+    return this.http.post<AnalyzeResponse>(`${this.baseUrl}/analyze`, { url, branch, token: token || '' });
   }
 
-  // token is now forwarded so private repo tarballs can be downloaded in process.js
-  processFiles(repoPath: string, files: string[], repoName: string, branch: string, owner: string, token?: string): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/process`, {
+  processFiles(
+    repoPath: string,
+    files: string[],
+    repoName: string,
+    branch: string,
+    owner: string,
+    token?: string,
+    commitSha?: string
+  ): Observable<ProcessResponse> {
+    return this.http.post<ProcessResponse>(`${this.baseUrl}/process`, {
       repo_path: repoPath,
       files,
       repo_name: repoName,
       branch,
+      commit_sha: commitSha || '',
       owner,
       token: token || ''
     });
