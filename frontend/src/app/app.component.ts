@@ -9,7 +9,9 @@ import {
   CommitInfo,
   AnalyzeResponse
 } from './services/api.service';
+import { RecentReposService, RecentRepo } from './services/recent-repos.service';
 import { TreeNodeComponent } from './components/tree-node/tree-node.component';
+import { RecentReposComponent, RepoSelectRequest } from './components/recent-repos/recent-repos.component';
 
 type ErrorCode =
   | 'private'
@@ -30,7 +32,7 @@ interface ParsedInputUrl {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, TreeNodeComponent],
+  imports: [CommonModule, FormsModule, TreeNodeComponent, RecentReposComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
@@ -43,6 +45,12 @@ export class AppComponent implements OnInit, OnDestroy {
   githubToken = '';
   tokenSaved = false;
   showTokenValue = false;
+
+  // ── Recent Repositories ──
+  recentRepos: RecentRepo[] = [];
+  activeRecentUrl = '';
+  private pendingBranchFallback = false;
+  private pendingFallbackFromBranch = '';
 
   // ── URL / Branch ──
   repoUrl = '';
@@ -108,6 +116,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private api: ApiService,
+    private recentReposService: RecentReposService,
     @Inject(DOCUMENT) private document: Document
   ) {}
 
@@ -125,6 +134,8 @@ export class AppComponent implements OnInit, OnDestroy {
       this.githubToken = tok;
       this.tokenSaved = true;
     }
+
+    this.recentRepos = this.recentReposService.getAll();
 
     window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', e => {
       if (!localStorage.getItem('copygit_theme')) {
@@ -148,6 +159,13 @@ export class AppComponent implements OnInit, OnDestroy {
   onEscapePress() {
     if (this.showTokenModal) {
       this.showTokenModal = false;
+    }
+  }
+
+  @HostListener('window:storage', ['$event'])
+  onStorageChange(event: StorageEvent) {
+    if (event.key === 'copygit_recent_repos' || event.key === null) {
+      this.recentRepos = this.recentReposService.getAll();
     }
   }
 
@@ -190,6 +208,53 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
+  // ── RECENT REPOSITORIES ──
+  openRecentOrExampleRepo(req: RepoSelectRequest) {
+    if (this.loading && this.activeRecentUrl.toLowerCase() === req.url.toLowerCase()) {
+      return;
+    }
+
+    if (this.urlDebounce) {
+      clearTimeout(this.urlDebounce);
+      this.urlDebounce = null;
+    }
+
+    this.repoInfoSub?.unsubscribe();
+    this.commitSub?.unsubscribe();
+    this.analyzeSub?.unsubscribe();
+    this.processSub?.unsubscribe();
+
+    this.loading = false;
+    this.autoAnalyzingInfo = false;
+    this.fetchingBranches = false;
+    this.fetchingCommit = false;
+
+    this.repoError = '';
+    this.repoErrorMessage = '';
+    this.actionError = '';
+    this.isPrivateDetected = false;
+    this.repoInfo = null;
+    this.latestCommit = null;
+
+    this.repoUrl = req.url;
+    this.branchName = req.branch || '';
+    this.branches = req.branch ? [req.branch] : [];
+
+    this.activeRecentUrl = req.url;
+    this.pendingBranchFallback = Boolean(req.isRecent && req.branch);
+    this.pendingFallbackFromBranch = req.branch || '';
+
+    this.runAnalyze();
+  }
+
+  removeRecentRepo(repo: RecentRepo) {
+    this.recentRepos = this.recentReposService.remove(repo.fullName);
+  }
+
+  clearRecentRepos() {
+    this.recentRepos = this.recentReposService.clear();
+  }
+
   // ── HOME RESET & URL HELPERS ──
   resetToHome() {
     if (this.urlDebounce) {
@@ -215,6 +280,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.repoError = '';
     this.repoErrorMessage = '';
     this.isPrivateDetected = false;
+    this.activeRecentUrl = '';
+    this.pendingBranchFallback = false;
+    this.pendingFallbackFromBranch = '';
 
     this.latestCommit = null;
     this.fetchingCommit = false;
@@ -295,6 +363,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.latestCommit = null;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
+    this.activeRecentUrl = '';
+    this.pendingBranchFallback = false;
+    this.pendingFallbackFromBranch = '';
   }
 
   // ── URL & BRANCH CHANGE ──
@@ -317,6 +388,9 @@ export class AppComponent implements OnInit, OnDestroy {
     this.latestCommit = null;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
+    this.activeRecentUrl = '';
+    this.pendingBranchFallback = false;
+    this.pendingFallbackFromBranch = '';
 
     const parsed = this.parseUrlInput(this.repoUrl);
     if (!parsed) return;
@@ -337,8 +411,12 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.isUrlValid || this.loading) return;
     if (this.urlDebounce) clearTimeout(this.urlDebounce);
 
+    this.activeRecentUrl = '';
+    this.pendingBranchFallback = false;
+    this.pendingFallbackFromBranch = '';
+
     if (this.branchName && this.repoInfo) {
-      this.onAnalyze();
+      this.runAnalyze();
     } else {
       this.fetchRepoInfo(true);
     }
@@ -378,7 +456,7 @@ export class AppComponent implements OnInit, OnDestroy {
         if (autoAnalyze) {
           this.loading = false;
           this.autoAnalyzingInfo = false;
-          this.onAnalyze();
+          this.runAnalyze();
         } else {
           this.fetchLatestCommit();
         }
@@ -389,6 +467,7 @@ export class AppComponent implements OnInit, OnDestroy {
           this.loading = false;
           this.autoAnalyzingInfo = false;
         }
+        this.activeRecentUrl = '';
         this.handleRepoInfoError(err);
       }
     });
@@ -446,6 +525,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   // ── ANALYZE (Loads or refreshes tree, preserves custom selections, and auto-generates bundle) ──
   onAnalyze() {
+    this.activeRecentUrl = '';
+    this.pendingBranchFallback = false;
+    this.pendingFallbackFromBranch = '';
+    this.runAnalyze();
+  }
+
+  private runAnalyze() {
     const parsed = this.parseUrlInput(this.repoUrl);
     if (!parsed || this.loading) return;
 
@@ -500,6 +586,10 @@ export class AppComponent implements OnInit, OnDestroy {
       analysis: this.api.analyzeRepo(this.repoUrl, requestedBranch, token)
     }).subscribe({
       next: ({ info, analysis }) => {
+        this.activeRecentUrl = '';
+        this.pendingBranchFallback = false;
+        this.pendingFallbackFromBranch = '';
+
         // Refresh repo metadata and branch list while preserving the user's selected branch
         this.repoInfo = info;
         this.branches = info.branches;
@@ -510,8 +600,52 @@ export class AppComponent implements OnInit, OnDestroy {
         }
 
         this.applyAnalysisResult(analysis, targetKey, isSameTarget, wasAllSelected, prevSelectedPaths);
+        this.recordRecentRepo(info, analysis);
       },
       error: err => {
+        const code = err?.error?.code || '';
+
+        // If a cached recent repo branch was deleted on GitHub, retry once on the repo's default branch
+        if (
+          this.pendingBranchFallback &&
+          this.pendingFallbackFromBranch &&
+          (code === 'NOT_FOUND' || code === 'LACKS_CONTENTS_PERMISSION')
+        ) {
+          const failedBranch = this.pendingFallbackFromBranch;
+          this.pendingBranchFallback = false;
+          this.pendingFallbackFromBranch = '';
+          this.fetchingBranches = true;
+
+          this.repoInfoSub = this.api.getRepoInfo(this.repoUrl, token).subscribe({
+            next: info => {
+              this.fetchingBranches = false;
+              this.loading = false;
+              this.repoInfo = info;
+              this.branches = info.branches;
+
+              if (!info.branches.includes(failedBranch) && info.default_branch) {
+                this.branchName = info.default_branch;
+                this.runAnalyze();
+              } else {
+                this.activeRecentUrl = '';
+                this.fetchingCommit = false;
+                this.handleAnalyzeError(err);
+              }
+            },
+            error: infoErr => {
+              this.fetchingBranches = false;
+              this.loading = false;
+              this.fetchingCommit = false;
+              this.activeRecentUrl = '';
+              this.handleRepoInfoError(infoErr);
+            }
+          });
+          return;
+        }
+
+        this.activeRecentUrl = '';
+        this.pendingBranchFallback = false;
+        this.pendingFallbackFromBranch = '';
         this.loading = false;
         this.fetchingCommit = false;
         this.handleAnalyzeError(err);
@@ -560,6 +694,26 @@ export class AppComponent implements OnInit, OnDestroy {
     } else {
       this.clearOutput();
     }
+  }
+
+  private recordRecentRepo(info: RepoInfo, analysis: AnalyzeResponse) {
+    const owner = info.owner || analysis.owner;
+    const repoName = info.repo_name || analysis.repo_name;
+    const fullName = info.full_name || `${owner}/${repoName}`;
+    const branch = analysis.branch || this.branchName || info.default_branch;
+
+    this.recentRepos = this.recentReposService.save({
+      url: `https://github.com/${fullName}`,
+      owner,
+      repoName,
+      fullName,
+      branch,
+      description: info.description || '',
+      language: info.language || '',
+      stars: info.stars || 0,
+      private: Boolean(info.private),
+      totalFiles: analysis.total_files ?? this.totalFileCount
+    });
   }
 
   private handleAnalyzeError(err: any) {

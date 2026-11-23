@@ -83,10 +83,11 @@
   <!-- ═══════════════════════════════════════════════════════
        MAIN CONTENT
        ═══════════════════════════════════════════════════════ -->
-  <main class="relative w-full max-w-7xl mx-auto px-4 sm:px-5 py-4 flex flex-col flex-1 min-h-0 lg:overflow-hidden">
+  <main class="relative w-full max-w-7xl mx-auto px-4 sm:px-5 py-4 flex flex-col flex-1 min-h-0"
+        [ngClass]="repoStructure ? 'lg:overflow-hidden' : 'lg:overflow-y-auto'">
 
     <!-- ── HERO (visible before repo loaded) ───────────────── -->
-    <div *ngIf="!repoStructure" class="text-center mb-6 mt-2 md:mt-6 animate-fade-in flex-shrink-0">
+    <div *ngIf="!repoStructure" class="text-center mb-5 mt-2 md:mt-4 animate-fade-in flex-shrink-0">
       <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-4 text-xs font-semibold"
            style="background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);">
         <span class="w-1.5 h-1.5 rounded-full animate-pulse-dot" style="background: var(--accent)"></span>
@@ -365,6 +366,17 @@
         <button (click)="actionError = ''" class="text-xs font-semibold flex-shrink-0" style="color: var(--error)" aria-label="Dismiss error">✕</button>
       </div>
     </section>
+
+    <!-- ── RECENT REPOSITORIES (visible before repo loaded) ─── -->
+    <app-recent-repos
+      *ngIf="!repoStructure"
+      [recentRepos]="recentRepos"
+      [loading]="loading"
+      [activeRepoUrl]="activeRecentUrl"
+      (selectRepo)="openRecentOrExampleRepo($event)"
+      (removeRepo)="removeRecentRepo($event)"
+      (clearAll)="clearRecentRepos()">
+    </app-recent-repos>
 
     <!-- ── MOBILE WORKSPACE TABS (< lg only) ────────────────── -->
     <div *ngIf="repoStructure" class="flex lg:hidden gap-1.5 p-1 rounded-xl mb-3 flex-shrink-0"

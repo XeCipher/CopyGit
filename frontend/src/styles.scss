@@ -294,6 +294,71 @@ button, a {
 }
 
 /* ──────────────────────────────────────────────
+   RECENT & STARTER REPOSITORY CARDS
+   ────────────────────────────────────────────── */
+.cg-recent-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.cg-recent-card:hover {
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+.cg-recent-card:active {
+  transform: translateY(0) scale(0.99);
+}
+.cg-recent-card.is-loading {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.cg-recent-card-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.cg-recent-card-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.cg-recent-remove {
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.cg-recent-remove:hover {
+  color: var(--error);
+  background: var(--error-dim);
+}
+
+.cg-quick-chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.cg-quick-chip:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+.cg-quick-chip:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
+}
+.cg-quick-chip.is-loading {
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.cg-quick-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ──────────────────────────────────────────────
    CHECKBOX CUSTOM STYLE
    ────────────────────────────────────────────── */
 input[type="checkbox"].cg-check {
