@@ -96,7 +96,7 @@ const EXT_COLORS: Record<string, string> = {
         <!-- File/Folder size badge -->
         <span
           *ngIf="node.size !== undefined"
-          class="text-[10px] flex-shrink-0 opacity-70"
+          class="text-[10px] flex-shrink-0"
           [style.color]="'var(--muted)'"
           [style.font-family]="'JetBrains Mono, monospace'">
           {{ formattedSize }}
@@ -125,7 +125,7 @@ export class TreeNodeComponent implements OnInit, OnChanges {
   @Output() selectionChange = new EventEmitter<void>();
 
   expanded: boolean = true;
-  extColor: string = '#6b7280';
+  extColor: string = '#7c8494';
   formattedSize: string = '';
   highlightParts: HighlightParts | null = null;
 
@@ -158,7 +158,7 @@ export class TreeNodeComponent implements OnInit, OnChanges {
 
   private syncVisualProps() {
     const ext = this.node.name.split('.').pop()?.toLowerCase() || '';
-    this.extColor = EXT_COLORS[ext] || '#6b7280';
+    this.extColor = EXT_COLORS[ext] || '#7c8494';
     this.formattedSize = this.node.size !== undefined ? this.formatSize(this.node.size) : '';
     this.updateHighlight();
   }

@@ -6,52 +6,88 @@
    THEME VARIABLES
    ────────────────────────────────────────────── */
 :root {
-  --bg:             #f5f5f0;
-  --surface:        #ffffff;
-  --card:           #ededea;
-  --border:         #d8d8d0;
-  --border-subtle:  #e8e8e4;
-  --text:           #18181a;
-  --text-secondary: #48484e;
-  --muted:          #888890;
-  --accent:         #6d59f0;
-  --accent-hover:   #5847d4;
-  --accent-dim:     rgba(109, 89, 240, 0.12);
-  --accent-border:  rgba(109, 89, 240, 0.25);
-  --success:        #16a34a;
-  --success-dim:    rgba(22, 163, 74, 0.1);
-  --error:          #dc2626;
-  --error-dim:      rgba(220, 38, 38, 0.1);
-  --warning:        #d97706;
-  --warning-dim:    rgba(217, 119, 6, 0.1);
-  --warning-border: rgba(217, 119, 6, 0.25);
-  --shadow:         0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.08);
-  --shadow-lg:      0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
-  --radius:         14px;
+  color-scheme: light;
+  --bg:                  #f5f5f0;
+  --surface:             #ffffff;
+  --surface-hover:       #ffffff;
+  --card:                #ededea;
+  --surface-elevated:    #ffffff;
+  --hover-elevated:      #e4e4df;
+  --border:              #d8d8d0;
+  --border-subtle:       #e8e8e4;
+  --checkbox-border:     #d8d8d0;
+  --text:                #18181a;
+  --text-secondary:      #48484e;
+  --muted:               #888890;
+  --accent:              #6d59f0;
+  --accent-hover:        #5847d4;
+  --accent-solid:        #6d59f0;
+  --accent-solid-hover:  #5847d4;
+  --accent-dim:          rgba(109, 89, 240, 0.12);
+  --accent-border:       rgba(109, 89, 240, 0.25);
+  --success:             #16a34a;
+  --success-dim:         rgba(22, 163, 74, 0.1);
+  --error:               #dc2626;
+  --error-dim:           rgba(220, 38, 38, 0.1);
+  --error-border:        rgba(220, 38, 38, 0.2);
+  --error-solid:         #dc2626;
+  --error-solid-hover:   #b91c1c;
+  --warning:             #d97706;
+  --warning-dim:         rgba(217, 119, 6, 0.1);
+  --warning-border:      rgba(217, 119, 6, 0.25);
+  --warning-solid:       #d97706;
+  --warning-solid-hover: #b45309;
+  --warning-solid-text:  #ffffff;
+  --copy-btn-bg:         #ffffff;
+  --copy-btn-hover:      #ededea;
+  --modal-backdrop:      rgba(0, 0, 0, 0.6);
+  --selection-bg:        rgba(109, 89, 240, 0.12);
+  --selection-text:      #6d59f0;
+  --shadow:              0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.08);
+  --shadow-lg:           0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  --radius:              14px;
 }
 
 .dark {
-  --bg:             #0a0a10;
-  --surface:        #111119;
-  --card:           #16161f;
-  --border:         #24242e;
-  --border-subtle:  #1e1e28;
-  --text:           #e8e8f0;
-  --text-secondary: #a8a8b8;
-  --muted:          #606070;
-  --accent:         #8b6ef5;
-  --accent-hover:   #a78bf7;
-  --accent-dim:     rgba(139, 110, 245, 0.12);
-  --accent-border:  rgba(139, 110, 245, 0.25);
-  --success:        #22c55e;
-  --success-dim:    rgba(34, 197, 94, 0.1);
-  --error:          #f87171;
-  --error-dim:      rgba(248, 113, 113, 0.1);
-  --warning:        #fbbf24;
-  --warning-dim:    rgba(251, 191, 36, 0.1);
-  --warning-border: rgba(251, 191, 36, 0.25);
-  --shadow:         0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-lg:      0 4px 24px rgba(0,0,0,0.5), 0 1px 4px rgba(0,0,0,0.4);
+  color-scheme: dark;
+  --bg:                  #0e1017;
+  --surface:             #161823;
+  --surface-hover:       #1b1e2c;
+  --card:                #1e2130;
+  --surface-elevated:    #282c3f;
+  --hover-elevated:      #282c3f;
+  --border:              #33374d;
+  --border-subtle:       #26293b;
+  --checkbox-border:     #505675;
+  --text:                #f0f1f7;
+  --text-secondary:      #c4c7da;
+  --muted:               #9296ae;
+  --accent:              #a78bf7;
+  --accent-hover:        #bca6fb;
+  --accent-solid:        #735cf2;
+  --accent-solid-hover:  #8570f6;
+  --accent-dim:          rgba(167, 139, 247, 0.16);
+  --accent-border:       rgba(167, 139, 247, 0.34);
+  --success:             #22c55e;
+  --success-dim:         rgba(34, 197, 94, 0.15);
+  --error:               #f87171;
+  --error-dim:           rgba(248, 113, 113, 0.14);
+  --error-border:        rgba(248, 113, 113, 0.34);
+  --error-solid:         #dc2626;
+  --error-solid-hover:   #ef4444;
+  --warning:             #fbbf24;
+  --warning-dim:         rgba(251, 191, 36, 0.14);
+  --warning-border:      rgba(251, 191, 36, 0.34);
+  --warning-solid:       #f59e0b;
+  --warning-solid-hover: #fbbf24;
+  --warning-solid-text:  #11131c;
+  --copy-btn-bg:         #1e2130;
+  --copy-btn-hover:      #282c3f;
+  --modal-backdrop:      rgba(0, 0, 0, 0.72);
+  --selection-bg:        rgba(167, 139, 247, 0.28);
+  --selection-text:      #f0f1f7;
+  --shadow:              0 1px 3px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.45);
+  --shadow-lg:           0 6px 24px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4);
 }
 
 /* ──────────────────────────────────────────────
@@ -112,8 +148,8 @@ button, a {
    SELECTION
    ────────────────────────────────────────────── */
 ::selection {
-  background: var(--accent-dim);
-  color: var(--accent);
+  background: var(--selection-bg);
+  color: var(--selection-text);
 }
 
 /* ──────────────────────────────────────────────
@@ -157,7 +193,7 @@ button, a {
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    background: var(--accent);
+    background: var(--accent-solid);
     color: #fff;
     border: none;
     border-radius: 10px;
@@ -169,7 +205,7 @@ button, a {
     white-space: nowrap;
   }
   .btn-primary:hover:not(:disabled) {
-    background: var(--accent-hover);
+    background: var(--accent-solid-hover);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px var(--accent-dim);
   }
@@ -177,8 +213,26 @@ button, a {
     transform: translateY(0) scale(0.98);
   }
   .btn-primary:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  .btn-primary.btn-warning {
+    background: var(--warning-solid);
+    color: var(--warning-solid-text);
+  }
+  .btn-primary.btn-warning:hover:not(:disabled) {
+    background: var(--warning-solid-hover);
+    box-shadow: 0 4px 12px var(--warning-dim);
+  }
+
+  .btn-primary.btn-error {
+    background: var(--error-solid);
+    color: #fff;
+  }
+  .btn-primary.btn-error:hover:not(:disabled) {
+    background: var(--error-solid-hover);
+    box-shadow: 0 4px 12px var(--error-dim);
   }
 
   .btn-ghost {
@@ -253,6 +307,18 @@ button, a {
   background: var(--card) !important;
 }
 
+.cg-hover-elevated:hover {
+  background: var(--hover-elevated) !important;
+  color: var(--text) !important;
+}
+
+.cg-icon-btn {
+  color: var(--muted);
+}
+.cg-icon-btn:hover {
+  color: var(--text);
+}
+
 .cg-hover-accent:hover {
   background: var(--accent-dim) !important;
 }
@@ -276,14 +342,14 @@ button, a {
 }
 
 .cg-copy-btn {
-  background: var(--surface);
+  background: var(--copy-btn-bg);
   border-width: 1px;
   border-style: solid;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: var(--shadow);
   backdrop-filter: blur(4px);
 }
 .cg-copy-btn:hover:not(.copied) {
-  background: var(--card);
+  background: var(--copy-btn-hover);
 }
 
 .cg-mark {
@@ -302,6 +368,7 @@ button, a {
   box-shadow: var(--shadow);
 }
 .cg-recent-card:hover {
+  background: var(--surface-hover);
   border-color: var(--accent-border);
   box-shadow: var(--shadow-lg);
   transform: translateY(-1px);
@@ -340,7 +407,7 @@ button, a {
   cursor: pointer;
 }
 .cg-quick-chip:hover:not(:disabled) {
-  background: var(--surface);
+  background: var(--surface-elevated);
   border-color: var(--accent-border);
   box-shadow: var(--shadow);
   transform: translateY(-1px);
@@ -349,7 +416,7 @@ button, a {
   transform: translateY(0) scale(0.99);
 }
 .cg-quick-chip.is-loading {
-  background: var(--surface);
+  background: var(--surface-elevated);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
@@ -366,7 +433,7 @@ input[type="checkbox"].cg-check {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--checkbox-border);
   border-radius: 4px;
   background: var(--card);
   cursor: pointer;
@@ -374,9 +441,12 @@ input[type="checkbox"].cg-check {
   flex-shrink: 0;
   transition: background 0.12s, border-color 0.12s !important;
 }
-input[type="checkbox"].cg-check:checked {
-  background: var(--accent);
+input[type="checkbox"].cg-check:hover:not(:checked):not(:indeterminate) {
   border-color: var(--accent);
+}
+input[type="checkbox"].cg-check:checked {
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
 }
 input[type="checkbox"].cg-check:checked::after {
   content: '';
@@ -470,6 +540,10 @@ select.cg-select {
 select.cg-select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
+}
+select.cg-select option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 /* ──────────────────────────────────────────────
