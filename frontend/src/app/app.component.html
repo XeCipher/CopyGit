@@ -164,7 +164,7 @@
               [defaultBranch]="repoInfo?.default_branch || ''"
               [loading]="fetchingBranches"
               [disabled]="branches.length === 0"
-              [truncated]="Boolean(repoInfo?.branches_truncated)"
+              [truncated]="!!repoInfo?.branches_truncated"
               (branchSelected)="onBranchSelect($event)"
               (openChange)="branchDropdownOpen = $event">
             </app-branch-selector>
@@ -184,7 +184,7 @@
               [hasMore]="commitsHasMore"
               [lookingUpSha]="lookingUpCommit"
               [lookupError]="commitLookupError"
-              [disabled]="!branchName || Boolean(latestCommit?.empty)"
+              [disabled]="!branchName || !!latestCommit?.empty"
               (commitSelected)="onCommitSelect($event)"
               (loadMore)="loadMoreCommits()"
               (lookupSha)="lookupCommitBySha($event)"
