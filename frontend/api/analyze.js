@@ -6,7 +6,8 @@ import {
   setNoCacheHeaders,
   safeJson,
   isRateLimitResponse,
-  formatRateLimitError
+  formatRateLimitError,
+  formatCommitInfo
 } from './_github.js';
 
 const IGNORE_LIST = new Set([
@@ -53,9 +54,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { url: repoUrl, branch, token } = parseBody(req);
+  const { url: repoUrl, branch, commit_sha: rawCommitSha, token } = parseBody(req);
+  const commitSha = typeof rawCommitSha === 'string' ? rawCommitSha.trim() : '';
   const parsed = parseGitHubUrl(repoUrl);
-  if (!parsed || !branch) {
+  if (!parsed || (!branch && !commitSha)) {
     return res.status(400).json({ error: 'Invalid GitHub URL or missing branch.', code: 'INVALID_URL' });
   }
 
@@ -65,11 +67,12 @@ export default async function handler(req, res) {
   const baseRepoUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
   try {
-    // Resolve the fresh HEAD commit first so tree + tarball stay pinned to the exact latest commit
-    const commitResp = await fetch(
-      `${baseRepoUrl}/commits?sha=${encodeURIComponent(branch)}&per_page=1`,
-      { headers }
-    );
+    // Resolve either the pinned commit or the fresh branch HEAD so tree + tarball stay pinned to one commit
+    const commitUrl = commitSha
+      ? `${baseRepoUrl}/commits/${encodeURIComponent(commitSha)}`
+      : `${baseRepoUrl}/commits?sha=${encodeURIComponent(branch)}&per_page=1`;
+
+    const commitResp = await fetch(commitUrl, { headers });
 
     if (commitResp.status === 401) {
       return res.status(401).json({ error: 'Invalid or expired GitHub token.', code: 'INVALID_TOKEN' });
@@ -81,17 +84,10 @@ export default async function handler(req, res) {
         repo_path: 'stateless',
         repo_name: repo,
         owner,
-        branch,
+        branch: branch || '',
         commit_sha: '',
-        latest_commit: {
-          empty: true,
-          sha: '',
-          tree_sha: '',
-          message: 'Repository is empty (no commits yet)',
-          author: '',
-          date: '',
-          html_url: ''
-        },
+        pinned_commit: Boolean(commitSha),
+        latest_commit: formatCommitInfo(null),
         truncated: false,
         total_files: 0,
         empty: true
@@ -106,31 +102,35 @@ export default async function handler(req, res) {
           code: 'RATE_LIMITED'
         });
       }
-      if (commitResp.status === 403 || (commitResp.status === 404 && isUserToken)) {
+      if (commitResp.status === 403 || (commitResp.status === 404 && isUserToken && !commitSha)) {
         return res.status(403).json({
           error: 'Token lacks Contents read permission for this repository.',
           code: 'LACKS_CONTENTS_PERMISSION'
         });
       }
-      if (commitResp.status === 404) {
+      if (commitResp.status === 404 || commitResp.status === 422) {
         return res.status(404).json({
-          error: 'Branch or repository not found.',
+          error: commitSha ? 'Commit or repository not found.' : 'Branch or repository not found.',
           code: 'NOT_FOUND'
         });
       }
-      return res.status(502).json({ error: errBody?.message || 'Failed to resolve branch commit.', code: 'API_ERROR' });
+      return res.status(502).json({ error: errBody?.message || 'Failed to resolve commit.', code: 'API_ERROR' });
     }
 
-    const commits = await commitResp.json();
-    const head = Array.isArray(commits) ? commits[0] : null;
+    const commitPayload = await commitResp.json();
+    const head = commitSha
+      ? commitPayload
+      : (Array.isArray(commitPayload) ? commitPayload[0] : null);
+
     if (!head) {
       return res.status(200).json({
         structure: [],
         repo_path: 'stateless',
         repo_name: repo,
         owner,
-        branch,
+        branch: branch || '',
         commit_sha: '',
+        pinned_commit: Boolean(commitSha),
         latest_commit: null,
         truncated: false,
         total_files: 0,
@@ -138,17 +138,11 @@ export default async function handler(req, res) {
       });
     }
 
-    const latestCommit = {
-      empty: false,
-      sha: head.sha,
-      tree_sha: head.commit?.tree?.sha || '',
-      message: (head.commit?.message || '').split('\n')[0],
-      author: head.commit?.author?.name || head.author?.login || 'Unknown',
-      date: head.commit?.author?.date || '',
-      html_url: head.html_url
-    };
+    // Only capture ETag for branch HEAD requests so conditional polling matches the exact endpoint
+    const headEtag = commitSha ? '' : (commitResp.headers.get('etag') || '');
+    const resolvedCommit = formatCommitInfo(head, headEtag);
 
-    const treeRef = latestCommit.tree_sha || head.sha;
+    const treeRef = resolvedCommit.tree_sha || head.sha;
     const treeResp = await fetch(
       `${baseRepoUrl}/git/trees/${encodeURIComponent(treeRef)}?recursive=1`,
       { headers }
@@ -223,9 +217,10 @@ export default async function handler(req, res) {
       repo_path: 'stateless',
       repo_name: repo,
       owner,
-      branch,
-      commit_sha: latestCommit.sha,
-      latest_commit: latestCommit,
+      branch: branch || '',
+      commit_sha: resolvedCommit.sha,
+      pinned_commit: Boolean(commitSha),
+      latest_commit: resolvedCommit,
       truncated: Boolean(treeData.truncated),
       total_files: totalFiles,
       empty: false

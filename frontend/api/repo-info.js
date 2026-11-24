@@ -10,6 +10,11 @@ import {
 } from './_github.js';
 
 const branchCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const MAX_BRANCH_PAGES = 3;
+
+function hasNextPage(linkHeader) {
+  return typeof linkHeader === 'string' && /rel=["']next["']/i.test(linkHeader);
+}
 
 export default async function handler(req, res) {
   setNoCacheHeaders(res);
@@ -29,10 +34,10 @@ export default async function handler(req, res) {
   const baseRepoUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
   try {
-    // Fetch repository metadata and branch list concurrently to cut latency
+    // Fetch repository metadata and first page of branches concurrently to cut latency
     const [repoResp, branchesResp] = await Promise.all([
       fetch(baseRepoUrl, { headers }),
-      fetch(`${baseRepoUrl}/branches?per_page=100`, { headers })
+      fetch(`${baseRepoUrl}/branches?per_page=100&page=1`, { headers })
     ]);
 
     if (repoResp.status === 401) {
@@ -66,11 +71,34 @@ export default async function handler(req, res) {
     const defaultBranch = repoData.default_branch || 'main';
 
     let branches = [];
+    let branchesTruncated = false;
+
     if (branchesResp.ok) {
-      const branchesData = await branchesResp.json();
-      if (Array.isArray(branchesData)) {
-        branches = branchesData.map(b => b.name).filter(Boolean);
+      const firstPage = await branchesResp.json();
+      if (Array.isArray(firstPage)) {
+        branches.push(...firstPage.map(b => b.name).filter(Boolean));
       }
+
+      let morePages = hasNextPage(branchesResp.headers.get('link'));
+      let currentPage = 2;
+
+      while (morePages && currentPage <= MAX_BRANCH_PAGES) {
+        const nextResp = await fetch(
+          `${baseRepoUrl}/branches?per_page=100&page=${currentPage}`,
+          { headers }
+        );
+        if (!nextResp.ok) break;
+
+        const nextData = await nextResp.json();
+        if (Array.isArray(nextData)) {
+          branches.push(...nextData.map(b => b.name).filter(Boolean));
+        }
+
+        morePages = hasNextPage(nextResp.headers.get('link'));
+        currentPage++;
+      }
+
+      branchesTruncated = morePages;
     }
 
     // Keep default branch first, then sort remaining branches naturally
@@ -83,6 +111,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       default_branch: defaultBranch,
       branches: sortedBranches,
+      branches_truncated: branchesTruncated,
       repo_name: repoData.name,
       full_name: repoData.full_name,
       owner: repoData.owner?.login || owner,

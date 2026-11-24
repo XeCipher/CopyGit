@@ -74,3 +74,29 @@ export function formatRateLimitError(resp) {
   }
   return 'GitHub rate limit exceeded. Add a token for higher limits.';
 }
+
+export function formatCommitInfo(commitData, etag = '') {
+  if (!commitData) {
+    return {
+      empty: true,
+      sha: '',
+      tree_sha: '',
+      message: 'Repository is empty (no commits yet)',
+      author: '',
+      date: '',
+      html_url: '',
+      ...(etag ? { etag } : {})
+    };
+  }
+
+  return {
+    empty: false,
+    sha: commitData.sha,
+    tree_sha: commitData.commit?.tree?.sha || '',
+    message: (commitData.commit?.message || '').split('\n')[0],
+    author: commitData.commit?.author?.name || commitData.author?.login || 'Unknown',
+    date: commitData.commit?.author?.date || commitData.commit?.committer?.date || '',
+    html_url: commitData.html_url || '',
+    ...(etag ? { etag } : {})
+  };
+}

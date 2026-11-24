@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, HostListener, ViewChild } from '@angular/core';
 import { DOCUMENT, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription, forkJoin } from 'rxjs';
@@ -12,6 +12,8 @@ import {
 import { RecentReposService, RecentRepo } from './services/recent-repos.service';
 import { TreeNodeComponent } from './components/tree-node/tree-node.component';
 import { RecentReposComponent, RepoSelectRequest } from './components/recent-repos/recent-repos.component';
+import { BranchSelectorComponent } from './components/branch-selector/branch-selector.component';
+import { CommitSelectorComponent, CommitSelectionEvent } from './components/commit-selector/commit-selector.component';
 
 type ErrorCode =
   | 'private'
@@ -27,15 +29,28 @@ interface ParsedInputUrl {
   owner: string;
   repo: string;
   branchHint: string;
+  commitHint: string;
 }
+
+const COMMIT_POLL_INTERVAL_MS = 30_000;
+const FOCUS_CHECK_COOLDOWN_MS = 8_000;
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, TreeNodeComponent, RecentReposComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TreeNodeComponent,
+    RecentReposComponent,
+    BranchSelectorComponent,
+    CommitSelectorComponent
+  ],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
+
+  @ViewChild(CommitSelectorComponent) commitSelector?: CommitSelectorComponent;
 
   // ── Theme ──
   isDark = false;
@@ -61,14 +76,39 @@ export class AppComponent implements OnInit, OnDestroy {
   repoError: ErrorCode = '';
   repoErrorMessage = '';
   isPrivateDetected = false;
+  branchDropdownOpen = false;
+  commitDropdownOpen = false;
   private autoAnalyzingInfo = false;
   private urlDebounce: ReturnType<typeof setTimeout> | null = null;
   private syncTimer: ReturnType<typeof setTimeout> | null = null;
   private copyTimer: ReturnType<typeof setTimeout> | null = null;
+  private upToDateTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // ── Latest Commit ──
+  // ── Commits & Live Update Checking ──
   latestCommit: CommitInfo | null = null;
   fetchingCommit = false;
+  commits: CommitInfo[] = [];
+  commitsPage = 1;
+  commitsHasMore = false;
+  fetchingCommits = false;
+  loadingMoreCommits = false;
+  lookingUpCommit = false;
+  commitLookupError = '';
+  selectedCommitSha = '';
+  pinnedCommitInfo: CommitInfo | null = null;
+  private commitsLoadedForBranch = '';
+
+  analyzedCommitInfo: CommitInfo | null = null;
+  analyzedMode: 'latest' | 'commit' = 'latest';
+  baselineHeadSha = '';
+  latestCommitEtag = '';
+  newCommitAvailable: CommitInfo | null = null;
+  dismissedNewCommitSha = '';
+  checkingForNewCommits = false;
+  commitCheckUpToDate = false;
+  private pollingPaused = false;
+  private lastCommitPollAt = 0;
+  private commitPollInterval: ReturnType<typeof setInterval> | null = null;
 
   // ── Tree / Analysis ──
   loading = false;
@@ -111,6 +151,8 @@ export class AppComponent implements OnInit, OnDestroy {
   // ── Active Subscriptions ──
   private repoInfoSub?: Subscription;
   private commitSub?: Subscription;
+  private commitsSub?: Subscription;
+  private pollSub?: Subscription;
   private analyzeSub?: Subscription;
   private processSub?: Subscription;
 
@@ -149,8 +191,11 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.urlDebounce) clearTimeout(this.urlDebounce);
     if (this.syncTimer) clearTimeout(this.syncTimer);
     if (this.copyTimer) clearTimeout(this.copyTimer);
+    if (this.upToDateTimer) clearTimeout(this.upToDateTimer);
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    this.commitsSub?.unsubscribe();
     this.analyzeSub?.unsubscribe();
     this.processSub?.unsubscribe();
   }
@@ -167,6 +212,50 @@ export class AppComponent implements OnInit, OnDestroy {
     if (event.key === 'copygit_recent_repos' || event.key === null) {
       this.recentRepos = this.recentReposService.getAll();
     }
+  }
+
+  @HostListener('document:visibilitychange')
+  onVisibilityChange() {
+    if (this.document.visibilityState === 'visible') {
+      this.triggerFocusCommitCheck();
+    }
+  }
+
+  @HostListener('window:focus')
+  onWindowFocus() {
+    this.triggerFocusCommitCheck();
+  }
+
+  get anyDropdownOpen(): boolean {
+    return this.branchDropdownOpen || this.commitDropdownOpen;
+  }
+
+  get showCommitSelector(): boolean {
+    return Boolean(this.repoInfo || this.branches.length > 0 || this.selectedCommitSha);
+  }
+
+  get displayedCommit(): CommitInfo | null {
+    if (this.repoStructure !== null) {
+      const currentMode: 'latest' | 'commit' = this.selectedCommitSha ? 'commit' : 'latest';
+      const matchesAnalyzed =
+        this.branchName === this.branch &&
+        currentMode === this.analyzedMode &&
+        (!this.selectedCommitSha || this.selectedCommitSha === this.analyzedCommitSha);
+
+      if (matchesAnalyzed && this.analyzedCommitInfo) {
+        return this.analyzedCommitInfo;
+      }
+    }
+
+    if (this.selectedCommitSha) {
+      return (
+        this.pinnedCommitInfo ||
+        this.commits.find(c => c.sha === this.selectedCommitSha) ||
+        this.latestCommit
+      );
+    }
+
+    return this.latestCommit;
   }
 
   // ── THEME ──
@@ -188,6 +277,7 @@ export class AppComponent implements OnInit, OnDestroy {
     localStorage.setItem('copygit_github_token', t);
     this.tokenSaved = true;
     this.githubToken = t;
+    this.pollingPaused = false;
     this.showTokenModal = false;
 
     if (this.repoUrl && (this.isPrivateDetected || this.repoError || !this.repoInfo)) {
@@ -219,8 +309,10 @@ export class AppComponent implements OnInit, OnDestroy {
       this.urlDebounce = null;
     }
 
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    this.commitsSub?.unsubscribe();
     this.analyzeSub?.unsubscribe();
     this.processSub?.unsubscribe();
 
@@ -228,6 +320,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.autoAnalyzingInfo = false;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
+    this.fetchingCommits = false;
+    this.loadingMoreCommits = false;
 
     this.repoError = '';
     this.repoErrorMessage = '';
@@ -235,6 +329,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.isPrivateDetected = false;
     this.repoInfo = null;
     this.latestCommit = null;
+    this.resetCommitSelectionState();
+    this.resetPollingState();
 
     this.repoUrl = req.url;
     this.branchName = req.branch || '';
@@ -265,9 +361,15 @@ export class AppComponent implements OnInit, OnDestroy {
       clearTimeout(this.syncTimer);
       this.syncTimer = null;
     }
+    if (this.upToDateTimer) {
+      clearTimeout(this.upToDateTimer);
+      this.upToDateTimer = null;
+    }
 
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    this.commitsSub?.unsubscribe();
     this.analyzeSub?.unsubscribe();
     this.processSub?.unsubscribe();
 
@@ -280,12 +382,16 @@ export class AppComponent implements OnInit, OnDestroy {
     this.repoError = '';
     this.repoErrorMessage = '';
     this.isPrivateDetected = false;
+    this.branchDropdownOpen = false;
+    this.commitDropdownOpen = false;
     this.activeRecentUrl = '';
     this.pendingBranchFallback = false;
     this.pendingFallbackFromBranch = '';
 
     this.latestCommit = null;
     this.fetchingCommit = false;
+    this.resetCommitSelectionState();
+    this.resetPollingState();
 
     this.loading = false;
     this.repoStructure = null;
@@ -295,6 +401,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.owner = '';
     this.branch = '';
     this.analyzedCommitSha = '';
+    this.analyzedCommitInfo = null;
+    this.analyzedMode = 'latest';
     this.searchQuery = '';
     this.treeTruncated = false;
     this.emptyRepo = false;
@@ -334,7 +442,13 @@ export class AppComponent implements OnInit, OnDestroy {
       branchHint = decodeURIComponent(treeMatch[1]).replace(/\/+$/, '');
     }
 
-    return { owner, repo, branchHint };
+    let commitHint = '';
+    const commitMatch = cleaned.match(/github\.com\/[^/]+\/[^/]+\/commit\/([0-9a-f]{4,40})/i);
+    if (commitMatch && commitMatch[1]) {
+      commitHint = commitMatch[1].toLowerCase();
+    }
+
+    return { owner, repo, branchHint, commitHint };
   }
 
   get isUrlValid(): boolean {
@@ -346,8 +460,10 @@ export class AppComponent implements OnInit, OnDestroy {
       clearTimeout(this.urlDebounce);
       this.urlDebounce = null;
     }
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    this.commitsSub?.unsubscribe();
     if (this.autoAnalyzingInfo) {
       this.loading = false;
       this.autoAnalyzingInfo = false;
@@ -363,6 +479,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.latestCommit = null;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
+    this.resetCommitSelectionState();
+    this.resetPollingState();
     this.activeRecentUrl = '';
     this.pendingBranchFallback = false;
     this.pendingFallbackFromBranch = '';
@@ -371,8 +489,10 @@ export class AppComponent implements OnInit, OnDestroy {
   // ── URL & BRANCH CHANGE ──
   onUrlChange(delayMs = 450) {
     if (this.urlDebounce) clearTimeout(this.urlDebounce);
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
+    this.commitsSub?.unsubscribe();
     if (this.autoAnalyzingInfo) {
       this.loading = false;
       this.autoAnalyzingInfo = false;
@@ -388,6 +508,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.latestCommit = null;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
+    this.resetCommitSelectionState();
+    this.resetPollingState();
     this.activeRecentUrl = '';
     this.pendingBranchFallback = false;
     this.pendingFallbackFromBranch = '';
@@ -453,12 +575,19 @@ export class AppComponent implements OnInit, OnDestroy {
 
         this.branchName = matchedHint || res.default_branch;
 
+        if (parsed.commitHint && !this.selectedCommitSha) {
+          this.selectedCommitSha = parsed.commitHint;
+        }
+
         if (autoAnalyze) {
           this.loading = false;
           this.autoAnalyzingInfo = false;
           this.runAnalyze();
         } else {
-          this.fetchLatestCommit();
+          this.loadBranchCommits(1, false);
+          if (parsed.commitHint) {
+            this.resolveHintedCommit(parsed.commitHint);
+          }
         }
       },
       error: err => {
@@ -471,6 +600,27 @@ export class AppComponent implements OnInit, OnDestroy {
         this.handleRepoInfoError(err);
       }
     });
+  }
+
+  private resolveHintedCommit(shaHint: string) {
+    if (!this.repoUrl || !shaHint) return;
+    this.commitSub?.unsubscribe();
+    this.fetchingCommit = true;
+
+    this.commitSub = this.api
+      .getLatestCommit(this.repoUrl, this.branchName, this.githubToken || undefined, shaHint)
+      .subscribe({
+        next: commit => {
+          this.fetchingCommit = false;
+          if (!commit.empty && commit.sha) {
+            this.selectedCommitSha = commit.sha;
+            this.pinnedCommitInfo = commit;
+          }
+        },
+        error: () => {
+          this.fetchingCommit = false;
+        }
+      });
   }
 
   private handleRepoInfoError(err: any) {
@@ -494,33 +644,183 @@ export class AppComponent implements OnInit, OnDestroy {
     }
   }
 
-  onBranchChange() {
+  // ── BRANCH & COMMIT SELECTION ──
+  onBranchSelect(newBranch: string) {
+    this.branchName = newBranch;
     this.actionError = '';
-    this.fetchLatestCommit();
+    this.selectedCommitSha = '';
+    this.pinnedCommitInfo = null;
+    this.commitLookupError = '';
+    this.commits = [];
+    this.commitsPage = 1;
+    this.commitsHasMore = false;
+    this.commitsLoadedForBranch = '';
+    this.resetPollingState();
+
+    // Ensure a manually entered branch remains visible in the local list
+    if (newBranch && !this.branches.includes(newBranch)) {
+      this.branches = [newBranch, ...this.branches];
+    }
+
+    if (this.repoStructure !== null) {
+      this.runAnalyze();
+    } else {
+      this.loadBranchCommits(1, false);
+    }
   }
 
-  fetchLatestCommit() {
+  onCommitSelect(event: CommitSelectionEvent) {
+    this.actionError = '';
+    this.commitLookupError = '';
+    this.selectedCommitSha = event.sha;
+    this.pinnedCommitInfo = event.sha ? event.commit : null;
+
+    if (this.repoStructure !== null) {
+      const targetScope = this.selectedCommitSha ? `commit:${this.selectedCommitSha}` : 'latest';
+      const parsed = this.parseUrlInput(this.repoUrl);
+      const nextKey = parsed
+        ? `${parsed.owner.toLowerCase()}/${parsed.repo.toLowerCase()}#${this.branchName}@${targetScope}`
+        : '';
+
+      if (nextKey !== this.lastAnalyzedKey || this.newCommitAvailable) {
+        this.runAnalyze();
+      }
+    }
+  }
+
+  onCommitDropdownOpenChange(open: boolean) {
+    this.commitDropdownOpen = open;
+    if (!open) return;
+
+    const currentBranch = this.branchName;
+    if (!currentBranch || !this.isUrlValid) return;
+
+    const needsInitialLoad =
+      this.commitsLoadedForBranch !== currentBranch || (this.commits.length === 0 && !this.emptyRepo);
+
+    const isStaleHead =
+      this.commits.length > 0 &&
+      this.latestCommit &&
+      !this.latestCommit.empty &&
+      this.commits[0].sha !== this.latestCommit.sha;
+
+    if ((needsInitialLoad || isStaleHead) && !this.fetchingCommits) {
+      this.loadBranchCommits(1, false);
+    }
+  }
+
+  loadBranchCommits(page = 1, append = false) {
     if (!this.repoUrl || !this.branchName) return;
 
-    this.commitSub?.unsubscribe();
-    this.fetchingCommit = true;
+    const targetBranch = this.branchName;
+    if (append) {
+      this.loadingMoreCommits = true;
+    } else {
+      this.commitsSub?.unsubscribe();
+      this.fetchingCommits = true;
+      this.fetchingCommit = true;
+    }
 
-    this.commitSub = this.api.getLatestCommit(this.repoUrl, this.branchName, this.githubToken || undefined).subscribe({
-      next: res => {
-        this.latestCommit = res;
-        this.fetchingCommit = false;
-      },
-      error: err => {
-        this.fetchingCommit = false;
-        const code = err?.error?.code || '';
-        if (code === 'LACKS_CONTENTS_PERMISSION') {
-          this.repoError = 'lacks_permission';
-        } else if (code === 'RATE_LIMITED') {
-          this.repoError = 'rate_limited';
-          this.repoErrorMessage = err?.error?.error || '';
+    this.commitsSub = this.api
+      .getCommits(this.repoUrl, targetBranch, page, 30, this.githubToken || undefined)
+      .subscribe({
+        next: res => {
+          this.fetchingCommits = false;
+          this.loadingMoreCommits = false;
+          this.fetchingCommit = false;
+          this.commitsLoadedForBranch = targetBranch;
+          this.commitsPage = res.page;
+          this.commitsHasMore = Boolean(res.has_more);
+
+          if (append) {
+            const seen = new Set(this.commits.map(c => c.sha));
+            const extra = res.commits.filter(c => !seen.has(c.sha));
+            this.commits = [...this.commits, ...extra];
+          } else {
+            this.commits = res.commits;
+            if (res.commits.length > 0) {
+              this.latestCommit = res.commits[0];
+              if (!this.baselineHeadSha) {
+                this.baselineHeadSha = res.commits[0].sha;
+              }
+            } else if (res.empty) {
+              this.latestCommit = {
+                empty: true,
+                sha: '',
+                tree_sha: '',
+                message: 'Repository is empty (no commits yet)',
+                author: '',
+                date: '',
+                html_url: ''
+              };
+            }
+          }
+        },
+        error: err => {
+          this.fetchingCommits = false;
+          this.loadingMoreCommits = false;
+          this.fetchingCommit = false;
+          const code = err?.error?.code || '';
+          if (code === 'LACKS_CONTENTS_PERMISSION') {
+            this.repoError = 'lacks_permission';
+          } else if (code === 'RATE_LIMITED') {
+            this.repoError = 'rate_limited';
+            this.repoErrorMessage = err?.error?.error || '';
+          }
         }
-      }
-    });
+      });
+  }
+
+  loadMoreCommits() {
+    if (this.loadingMoreCommits || !this.commitsHasMore) return;
+    this.loadBranchCommits(this.commitsPage + 1, true);
+  }
+
+  lookupCommitBySha(sha: string) {
+    if (!this.repoUrl || !sha || this.lookingUpCommit) return;
+
+    this.lookingUpCommit = true;
+    this.commitLookupError = '';
+
+    this.api
+      .getCommits(this.repoUrl, this.branchName, 1, 1, this.githubToken || undefined, sha)
+      .subscribe({
+        next: res => {
+          this.lookingUpCommit = false;
+          const found = res.commits?.[0];
+          if (!found) {
+            this.commitLookupError = `No commit found matching "${sha}".`;
+            return;
+          }
+
+          this.commitLookupError = '';
+          this.commitSelector?.close();
+          this.onCommitSelect({ sha: found.sha, commit: found });
+        },
+        error: err => {
+          this.lookingUpCommit = false;
+          this.commitLookupError = err?.error?.error || 'Could not look up that commit.';
+        }
+      });
+  }
+
+  switchToLatestFromBar() {
+    this.selectedCommitSha = '';
+    this.pinnedCommitInfo = null;
+    this.runAnalyze();
+  }
+
+  private resetCommitSelectionState() {
+    this.commits = [];
+    this.commitsPage = 1;
+    this.commitsHasMore = false;
+    this.fetchingCommits = false;
+    this.loadingMoreCommits = false;
+    this.lookingUpCommit = false;
+    this.commitLookupError = '';
+    this.selectedCommitSha = '';
+    this.pinnedCommitInfo = null;
+    this.commitsLoadedForBranch = '';
   }
 
   // ── ANALYZE (Loads or refreshes tree, preserves custom selections, and auto-generates bundle) ──
@@ -543,7 +843,8 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const targetKey = `${parsed.owner.toLowerCase()}/${parsed.repo.toLowerCase()}#${this.branchName}`;
+    const commitScope = this.selectedCommitSha ? `commit:${this.selectedCommitSha}` : 'latest';
+    const targetKey = `${parsed.owner.toLowerCase()}/${parsed.repo.toLowerCase()}#${this.branchName}@${commitScope}`;
     const isSameTarget = this.repoStructure !== null && this.lastAnalyzedKey === targetKey;
 
     let prevSelectedPaths: Set<string> | null = null;
@@ -556,6 +857,7 @@ export class AppComponent implements OnInit, OnDestroy {
       }
     }
 
+    this.stopCommitPolling();
     this.repoInfoSub?.unsubscribe();
     this.commitSub?.unsubscribe();
     this.analyzeSub?.unsubscribe();
@@ -568,6 +870,12 @@ export class AppComponent implements OnInit, OnDestroy {
     this.repoError = '';
     this.repoErrorMessage = '';
     this.justRefreshed = false;
+    this.pollingPaused = false;
+
+    if (!this.selectedCommitSha) {
+      this.newCommitAvailable = null;
+      this.dismissedNewCommitSha = '';
+    }
 
     if (!isSameTarget) {
       this.clearOutput();
@@ -580,10 +888,11 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const token = this.githubToken || undefined;
     const requestedBranch = this.branchName;
+    const requestedCommitSha = this.selectedCommitSha || undefined;
 
     this.analyzeSub = forkJoin({
       info: this.api.getRepoInfo(this.repoUrl, token),
-      analysis: this.api.analyzeRepo(this.repoUrl, requestedBranch, token)
+      analysis: this.api.analyzeRepo(this.repoUrl, requestedBranch, token, requestedCommitSha)
     }).subscribe({
       next: ({ info, analysis }) => {
         this.activeRecentUrl = '';
@@ -592,14 +901,25 @@ export class AppComponent implements OnInit, OnDestroy {
 
         // Refresh repo metadata and branch list while preserving the user's selected branch
         this.repoInfo = info;
-        this.branches = info.branches;
         if (info.branches.includes(requestedBranch)) {
+          this.branches = info.branches;
+          this.branchName = requestedBranch;
+        } else if (requestedBranch) {
+          this.branches = [requestedBranch, ...info.branches];
           this.branchName = requestedBranch;
         } else {
+          this.branches = info.branches;
           this.branchName = info.default_branch;
         }
 
-        this.applyAnalysisResult(analysis, targetKey, isSameTarget, wasAllSelected, prevSelectedPaths);
+        this.applyAnalysisResult(
+          analysis,
+          targetKey,
+          isSameTarget,
+          wasAllSelected,
+          prevSelectedPaths,
+          Boolean(requestedCommitSha)
+        );
         this.recordRecentRepo(info, analysis);
       },
       error: err => {
@@ -658,7 +978,8 @@ export class AppComponent implements OnInit, OnDestroy {
     targetKey: string,
     isSameTarget: boolean,
     wasAllSelected: boolean,
-    prevSelectedPaths: Set<string> | null
+    prevSelectedPaths: Set<string> | null,
+    isPinnedCommit: boolean
   ) {
     this.repoStructure = res.structure;
     this.repoPath = res.repo_path;
@@ -666,12 +987,37 @@ export class AppComponent implements OnInit, OnDestroy {
     this.owner = res.owner;
     this.branch = res.branch || this.branchName;
     this.analyzedCommitSha = res.commit_sha || '';
+    this.analyzedMode = isPinnedCommit ? 'commit' : 'latest';
+    this.analyzedCommitInfo = res.latest_commit;
     this.treeTruncated = Boolean(res.truncated);
     this.emptyRepo = Boolean(res.empty);
     this.lastAnalyzedKey = targetKey;
 
-    if (res.latest_commit) {
+    if (isPinnedCommit) {
+      if (res.commit_sha) {
+        this.selectedCommitSha = res.commit_sha;
+      }
+      if (res.latest_commit) {
+        this.pinnedCommitInfo = res.latest_commit;
+      }
+    } else if (res.latest_commit) {
       this.latestCommit = res.latest_commit;
+      this.latestCommitEtag = res.latest_commit.etag || '';
+      this.baselineHeadSha = res.latest_commit.sha || '';
+      this.newCommitAvailable = null;
+      this.dismissedNewCommitSha = '';
+      this.lastCommitPollAt = Date.now();
+
+      // Keep loaded commit list fresh when a newer HEAD arrives
+      if (
+        this.commitsLoadedForBranch === this.branch &&
+        this.commits.length > 0 &&
+        !res.latest_commit.empty &&
+        res.latest_commit.sha &&
+        !this.commits.some(c => c.sha === res.latest_commit?.sha)
+      ) {
+        this.commits = [res.latest_commit, ...this.commits];
+      }
     }
     this.fetchingCommit = false;
 
@@ -688,6 +1034,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.loading = false;
     this.triggerSyncedBadge();
+
+    if (!this.emptyRepo) {
+      this.startCommitPolling();
+    }
 
     if (this.selectedFileCount > 0) {
       this.generateText();
@@ -749,6 +1099,157 @@ export class AppComponent implements OnInit, OnDestroy {
     this.syncTimer = setTimeout(() => {
       this.justRefreshed = false;
     }, 2600);
+  }
+
+  // ── LIVE COMMIT POLLING ON ANALYZED SCREEN ──
+  private startCommitPolling() {
+    this.stopCommitPolling();
+    this.commitPollInterval = setInterval(() => {
+      if (this.document.visibilityState !== 'visible') return;
+      if (!this.repoStructure || this.loading || this.emptyRepo || this.pollingPaused) return;
+      if (this.checkingForNewCommits) return;
+      this.checkForNewCommits(false);
+    }, COMMIT_POLL_INTERVAL_MS);
+  }
+
+  private stopCommitPolling() {
+    if (this.commitPollInterval) {
+      clearInterval(this.commitPollInterval);
+      this.commitPollInterval = null;
+    }
+    this.pollSub?.unsubscribe();
+    this.checkingForNewCommits = false;
+  }
+
+  private resetPollingState() {
+    this.baselineHeadSha = '';
+    this.latestCommitEtag = '';
+    this.newCommitAvailable = null;
+    this.dismissedNewCommitSha = '';
+    this.commitCheckUpToDate = false;
+    this.pollingPaused = false;
+    this.lastCommitPollAt = 0;
+  }
+
+  private triggerFocusCommitCheck() {
+    if (!this.repoStructure || this.loading || this.emptyRepo || this.pollingPaused) return;
+    if (this.checkingForNewCommits) return;
+    if (Date.now() - this.lastCommitPollAt < FOCUS_CHECK_COOLDOWN_MS) return;
+    this.checkForNewCommits(false);
+  }
+
+  checkForNewCommits(manual = false) {
+    if (!this.repoStructure || this.loading || this.emptyRepo) return;
+    const targetBranch = this.branch || this.branchName;
+    if (!this.repoUrl || !targetBranch || this.checkingForNewCommits) return;
+
+    if (manual) {
+      this.pollingPaused = false;
+      this.commitCheckUpToDate = false;
+      if (this.upToDateTimer) {
+        clearTimeout(this.upToDateTimer);
+        this.upToDateTimer = null;
+      }
+    }
+
+    this.pollSub?.unsubscribe();
+    this.checkingForNewCommits = true;
+    this.lastCommitPollAt = Date.now();
+
+    const etagToSend = this.latestCommitEtag || undefined;
+
+    this.pollSub = this.api
+      .getLatestCommit(this.repoUrl, targetBranch, this.githubToken || undefined, undefined, etagToSend)
+      .subscribe({
+        next: res => {
+          this.checkingForNewCommits = false;
+
+          if (res.unchanged) {
+            if (manual) {
+              this.triggerUpToDateNotice();
+            }
+            return;
+          }
+
+          if (res.etag !== undefined) {
+            this.latestCommitEtag = res.etag;
+          }
+
+          if (!res.sha || res.empty) {
+            if (manual) {
+              this.triggerUpToDateNotice();
+            }
+            return;
+          }
+
+          this.latestCommit = res;
+
+          // If the user opened directly to a historical commit without a branch HEAD baseline yet,
+          // record current HEAD quietly so only subsequent pushes trigger an alert
+          if (!this.baselineHeadSha) {
+            this.baselineHeadSha = res.sha;
+            if (manual) {
+              this.triggerUpToDateNotice();
+            }
+            return;
+          }
+
+          const isNewerThanBaseline = res.sha !== this.baselineHeadSha;
+          const isDifferentFromAnalyzed = res.sha !== this.analyzedCommitSha;
+
+          if (isNewerThanBaseline && isDifferentFromAnalyzed) {
+            if (manual || res.sha !== this.dismissedNewCommitSha) {
+              this.newCommitAvailable = res;
+            }
+          } else {
+            this.newCommitAvailable = null;
+            if (manual) {
+              this.triggerUpToDateNotice();
+            }
+          }
+        },
+        error: err => {
+          this.checkingForNewCommits = false;
+          const code = err?.error?.code || '';
+          if (code === 'RATE_LIMITED') {
+            this.pollingPaused = true;
+            if (manual) {
+              this.repoError = 'rate_limited';
+              this.repoErrorMessage = err?.error?.error || '';
+            }
+          } else if (manual) {
+            this.actionError = err?.error?.error || 'Could not check for new commits.';
+          }
+        }
+      });
+  }
+
+  applyNewCommit() {
+    if (!this.newCommitAvailable || this.loading) return;
+    const targetBranch = this.branch || this.branchName;
+    if (targetBranch) {
+      this.branchName = targetBranch;
+    }
+    this.selectedCommitSha = '';
+    this.pinnedCommitInfo = null;
+    this.newCommitAvailable = null;
+    this.dismissedNewCommitSha = '';
+    this.runAnalyze();
+  }
+
+  dismissNewCommit() {
+    if (this.newCommitAvailable?.sha) {
+      this.dismissedNewCommitSha = this.newCommitAvailable.sha;
+    }
+    this.newCommitAvailable = null;
+  }
+
+  private triggerUpToDateNotice() {
+    if (this.upToDateTimer) clearTimeout(this.upToDateTimer);
+    this.commitCheckUpToDate = true;
+    this.upToDateTimer = setTimeout(() => {
+      this.commitCheckUpToDate = false;
+    }, 2200);
   }
 
   // ── TREE SELECTION & EXPANSION ──
@@ -986,7 +1487,10 @@ export class AppComponent implements OnInit, OnDestroy {
     const a = this.document.createElement('a');
     a.href = url;
     const safeBranch = (this.branch || this.branchName || 'bundle').replace(/[/\\?%*:|"<>]/g, '-');
-    a.download = `${this.repoName || 'copygit'}-${safeBranch}.txt`;
+    const commitSuffix = this.analyzedMode === 'commit' && this.analyzedCommitSha
+      ? `-${this.analyzedCommitSha.slice(0, 7)}`
+      : '';
+    a.download = `${this.repoName || 'copygit'}-${safeBranch}${commitSuffix}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

@@ -360,6 +360,89 @@ button, a {
 }
 
 /* ──────────────────────────────────────────────
+   CUSTOM BRANCH & COMMIT DROPDOWNS
+   ────────────────────────────────────────────── */
+.cg-selector-trigger {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: 'Sora', sans-serif;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+.cg-selector-trigger:hover:not(:disabled) {
+  border-color: var(--accent-border);
+  background: var(--surface-hover);
+}
+.cg-selector-trigger.is-open,
+.cg-selector-trigger:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.cg-selector-trigger.is-disabled,
+.cg-selector-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.cg-dropdown-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: dropdownEnter 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cg-dropdown-item {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.cg-dropdown-item:hover:not(:disabled),
+.cg-dropdown-item.is-highlighted {
+  background: var(--card);
+}
+.cg-dropdown-item.is-selected {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+.cg-dropdown-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 640px) {
+  @keyframes dropdownEnter {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+/* ──────────────────────────────────────────────
    RECENT & STARTER REPOSITORY CARDS
    ────────────────────────────────────────────── */
 .cg-recent-card {

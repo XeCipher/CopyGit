@@ -219,8 +219,8 @@ export default async function handler(req, res) {
     const parts = [
       `${SEP}\nCOPYGIT BUNDLE\n${SEP}\n`,
       `Repository : ${fullName}\n`,
-      `Branch     : ${branch || targetRef}\n`,
-      commitSha ? `Commit     : ${commitSha.slice(0, 7)}\n` : '',
+      branch ? `Branch     : ${branch}\n` : '',
+      commitSha ? `Commit     : ${commitSha.slice(0, 7)}\n` : (!branch ? `Ref        : ${targetRef}\n` : ''),
       `Files      : ${filesSummary}\n`,
       `Generated  : ${now}\n`,
       `Tool       : CopyGit — https://copygit.vercel.app\n${SEP}\n\n`,

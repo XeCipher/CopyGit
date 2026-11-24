@@ -14,7 +14,7 @@
   <!-- ═══════════════════════════════════════════════════════
        HEADER
        ═══════════════════════════════════════════════════════ -->
-  <header class="sticky top-0 z-40 backdrop-blur-xl flex-shrink-0"
+  <header class="sticky top-0 z-30 backdrop-blur-xl flex-shrink-0"
           style="background: var(--bg); border-bottom: 1px solid var(--border-subtle);">
     <div class="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between">
 
@@ -103,7 +103,7 @@
 
       <!-- Feature pills -->
       <div class="flex flex-wrap justify-center gap-2 mt-4">
-        <span *ngFor="let feat of ['Select specific files', 'Public & private repos', 'All branches', 'Download or copy', 'Token count', 'AI-optimized format']"
+        <span *ngFor="let feat of ['Select specific files', 'Public & private repos', 'All branches & commits', 'Download or copy', 'Token count', 'AI-optimized format']"
               class="text-[11px] px-2.5 py-0.5 rounded-full"
               style="background: var(--card); border: 1px solid var(--border); color: var(--text-secondary);">
           {{ feat }}
@@ -112,13 +112,14 @@
     </div>
 
     <!-- ── INPUT SECTION ─────────────────────────────────────── -->
-    <section class="card p-3.5 sm:p-4 md:p-5 mb-4 flex-shrink-0 animate-fade-in">
+    <section class="card p-3.5 sm:p-4 md:p-5 mb-4 flex-shrink-0 animate-fade-in relative"
+             [ngClass]="anyDropdownOpen ? 'z-40' : 'z-20'">
 
       <!-- Main input row -->
-      <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+      <div class="flex flex-col lg:flex-row gap-2.5 sm:gap-3">
 
         <!-- URL Input -->
-        <div class="flex-1 relative">
+        <div class="flex-1 relative min-w-0">
           <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--muted)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
@@ -152,36 +153,50 @@
           </button>
         </div>
 
-        <!-- Branch + Analyze row on mobile, inline on sm+ -->
-        <div class="flex gap-2.5 sm:gap-3">
-          <!-- Branch selector -->
-          <div class="relative flex-1 sm:w-48 sm:flex-none">
-            <select
-              [(ngModel)]="branchName"
-              (ngModelChange)="onBranchChange()"
+        <!-- Branch + Commit + Analyze controls -->
+        <div class="flex flex-wrap sm:flex-nowrap items-stretch gap-2.5 sm:gap-3">
+
+          <!-- Searchable branch selector -->
+          <div [ngClass]="showCommitSelector ? 'flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none' : 'flex-1 min-w-0 sm:w-48 sm:flex-none'">
+            <app-branch-selector
+              [branches]="branches"
+              [selectedBranch]="branchName"
+              [defaultBranch]="repoInfo?.default_branch || ''"
+              [loading]="fetchingBranches"
               [disabled]="branches.length === 0"
-              aria-label="Select branch"
-              class="cg-select"
-              [style.opacity]="branches.length === 0 ? 0.55 : 1">
-              <option *ngIf="branches.length === 0" value="">
-                {{ fetchingBranches ? 'Loading...' : 'Branch' }}
-              </option>
-              <option *ngFor="let b of branches" [value]="b">{{ b }}</option>
-            </select>
-            <div *ngIf="!fetchingBranches" class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style="color: var(--muted)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </div>
-            <div *ngIf="fetchingBranches" class="absolute right-3 top-1/2 -translate-y-1/2">
-              <div class="spinner" style="width:14px; height:14px;"></div>
-            </div>
+              [truncated]="Boolean(repoInfo?.branches_truncated)"
+              (branchSelected)="onBranchSelect($event)"
+              (openChange)="branchDropdownOpen = $event">
+            </app-branch-selector>
+          </div>
+
+          <!-- Commit selector (shown once repo info / branches load) -->
+          <div *ngIf="showCommitSelector"
+               class="flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none animate-fade-in">
+            <app-commit-selector
+              [commits]="commits"
+              [selectedCommitSha]="selectedCommitSha"
+              [headCommit]="latestCommit"
+              [pinnedCommitInfo]="pinnedCommitInfo"
+              [branchName]="branchName"
+              [loading]="fetchingCommits"
+              [loadingMore]="loadingMoreCommits"
+              [hasMore]="commitsHasMore"
+              [lookingUpSha]="lookingUpCommit"
+              [lookupError]="commitLookupError"
+              [disabled]="!branchName || Boolean(latestCommit?.empty)"
+              (commitSelected)="onCommitSelect($event)"
+              (loadMore)="loadMoreCommits()"
+              (lookupSha)="lookupCommitBySha($event)"
+              (openChange)="onCommitDropdownOpenChange($event)">
+            </app-commit-selector>
           </div>
 
           <!-- Analyze / Refresh button -->
           <button
             (click)="onAnalyze()"
             [disabled]="loading || !isUrlValid"
+            [ngClass]="showCommitSelector ? 'w-full sm:w-auto' : ''"
             class="btn-primary flex-shrink-0 min-w-[112px]">
             <div *ngIf="loading" class="spinner" style="width:14px; height:14px; border-color: rgba(255,255,255,0.3); border-top-color: white;"></div>
             <svg *ngIf="!loading && !repoStructure" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -234,40 +249,136 @@
         </div>
       </div>
 
-      <!-- ── LATEST COMMIT BAR ── -->
-      <div *ngIf="(latestCommit || fetchingCommit) && repoInfo && !repoError"
-           class="mt-3 flex items-center gap-3 p-2.5 px-3 rounded-xl border animate-fade-in"
+      <!-- ── ACTIVE / LATEST COMMIT BAR ── -->
+      <div *ngIf="(displayedCommit || fetchingCommit) && repoInfo && !repoError"
+           class="mt-3 flex items-start md:items-center gap-2.5 p-2.5 px-3 rounded-xl border animate-fade-in"
            style="background: var(--card); border-color: var(--border);">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" style="color: var(--muted)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             class="flex-shrink-0 mt-0.5 md:mt-0" style="color: var(--muted)">
           <circle cx="12" cy="12" r="3"/><line x1="3" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="21" y2="12"/>
         </svg>
 
-        <div *ngIf="latestCommit && !latestCommit.empty" class="flex-1 flex flex-wrap items-center gap-2 text-xs overflow-hidden min-w-0">
-          <a [href]="latestCommit.html_url" target="_blank" rel="noopener noreferrer"
-             class="font-mono font-semibold flex-shrink-0 cg-commit-link"
-             title="View commit on GitHub">
-            {{ latestCommit.sha | slice:0:7 }}
-          </a>
-          <span style="color: var(--muted)">·</span>
+        <div *ngIf="displayedCommit && !displayedCommit.empty" class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 text-xs min-w-0">
+            <span *ngIf="repoStructure && analyzedMode === 'commit'"
+                  class="text-[9.5px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                  style="background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border);">
+              PINNED
+            </span>
 
-          <span class="truncate flex-1 min-w-[120px]" style="color: var(--text)" [title]="latestCommit.message">
-            {{ latestCommit.message }}
+            <a [href]="displayedCommit.html_url" target="_blank" rel="noopener noreferrer"
+               class="font-mono font-semibold flex-shrink-0 cg-commit-link"
+               title="View commit on GitHub">
+              {{ displayedCommit.sha | slice:0:7 }}
+            </a>
+            <span style="color: var(--muted)">·</span>
+
+            <span class="truncate flex-1 min-w-0" style="color: var(--text)" [title]="displayedCommit.message">
+              {{ displayedCommit.message }}
+            </span>
+
+            <span class="hidden md:inline flex-shrink-0" style="color: var(--muted)"
+                  [title]="(displayedCommit.date | date:'EEEE, MMM d, yyyy, h:mm:ss a zzzz') || ''">
+              by {{ displayedCommit.author }} · {{ displayedCommit.date | date:'MMM d, yyyy, h:mm a' }}
+            </span>
+          </div>
+
+          <!-- Author + exact date and time on smaller screens -->
+          <div class="md:hidden text-[11px] mt-0.5 truncate" style="color: var(--muted)">
+            by {{ displayedCommit.author }} · {{ displayedCommit.date | date:'MMM d, yyyy, h:mm a' }}
+          </div>
+        </div>
+
+        <div *ngIf="displayedCommit?.empty" class="flex-1 text-xs" style="color: var(--muted)">
+          {{ displayedCommit?.message }}
+        </div>
+
+        <div *ngIf="fetchingCommit && !displayedCommit" class="flex-1 flex items-center gap-2 text-xs">
+          <span style="color: var(--muted)">Fetching commits…</span>
+        </div>
+
+        <!-- Right-side commit actions -->
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+          <button
+            *ngIf="repoStructure && analyzedMode === 'commit' && !loading"
+            type="button"
+            (click)="switchToLatestFromBar()"
+            class="text-[11px] font-semibold px-2 py-0.5 rounded-md cg-hover-accent flex-shrink-0"
+            style="color: var(--accent);"
+            title="Switch back to branch HEAD">
+            Use latest
+          </button>
+
+          <span *ngIf="commitCheckUpToDate && !checkingForNewCommits && !newCommitAvailable"
+                class="text-[10.5px] font-medium px-1.5 py-0.5 rounded animate-fade-in"
+                style="background: var(--success-dim); color: var(--success);">
+            Up to date
           </span>
 
-          <span class="hidden sm:inline flex-shrink-0" style="color: var(--muted)">
-            by {{ latestCommit.author }} on {{ latestCommit.date | date:'MMM d, yyyy' }}
-          </span>
+          <button
+            *ngIf="repoStructure && !emptyRepo && !loading"
+            type="button"
+            (click)="checkForNewCommits(true)"
+            [disabled]="checkingForNewCommits"
+            class="w-6 h-6 rounded-md flex items-center justify-center cg-hover-elevated flex-shrink-0"
+            style="color: var(--muted);"
+            title="Check for new commits"
+            aria-label="Check for new commits">
+            <div *ngIf="checkingForNewCommits" class="spinner" style="width: 12px; height: 12px; border-width: 1.5px;"></div>
+            <svg *ngIf="!checkingForNewCommits" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+
+          <div *ngIf="fetchingCommit && !checkingForNewCommits" class="spinner flex-shrink-0" style="width:13px; height:13px; border-width: 1.5px;"></div>
+        </div>
+      </div>
+
+      <!-- ── NEW COMMIT AVAILABLE BANNER ── -->
+      <div *ngIf="newCommitAvailable && repoStructure && !repoError"
+           class="mt-2.5 rounded-xl p-2.5 px-3 animate-slide-down flex flex-col sm:flex-row sm:items-center gap-2.5"
+           style="background: var(--accent-dim); border: 1px solid var(--accent-border);">
+        <div class="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+          <span class="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 sm:mt-0 animate-pulse-dot"
+                style="background: var(--accent);"></span>
+          <div class="text-xs min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+              <span class="font-semibold" style="color: var(--accent)">New commit on {{ branch }}:</span>
+              <a [href]="newCommitAvailable.html_url" target="_blank" rel="noopener noreferrer"
+                 class="font-mono font-semibold cg-commit-link underline"
+                 title="View new commit on GitHub">
+                {{ newCommitAvailable.sha | slice:0:7 }}
+              </a>
+              <span class="truncate max-w-full sm:max-w-md" style="color: var(--text)" [title]="newCommitAvailable.message">
+                {{ newCommitAvailable.message }}
+              </span>
+              <span style="color: var(--text-secondary)">
+                · by {{ newCommitAvailable.author }} · {{ newCommitAvailable.date | date:'MMM d, h:mm a' }}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div *ngIf="latestCommit?.empty" class="flex-1 text-xs" style="color: var(--muted)">
-          {{ latestCommit?.message }}
+        <div class="flex items-center gap-1.5 flex-shrink-0 self-end sm:self-center">
+          <button
+            type="button"
+            (click)="applyNewCommit()"
+            [disabled]="loading"
+            class="btn-primary py-1.5 px-3 text-xs">
+            {{ analyzedMode === 'commit' ? 'Load latest' : 'Update' }}
+          </button>
+          <button
+            type="button"
+            (click)="dismissNewCommit()"
+            class="w-7 h-7 rounded-lg flex items-center justify-center cg-hover-elevated"
+            style="color: var(--text-secondary);"
+            title="Dismiss notification"
+            aria-label="Dismiss new commit notification">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
-
-        <div *ngIf="fetchingCommit && !latestCommit" class="flex-1 flex items-center gap-2 text-xs">
-          <span style="color: var(--muted)">Fetching latest commit...</span>
-        </div>
-
-        <div *ngIf="fetchingCommit" class="spinner flex-shrink-0" style="width:13px; height:13px; border-width: 1.5px;"></div>
       </div>
 
       <!-- ── ERROR STATES ── -->
@@ -368,6 +479,7 @@
     <!-- ── RECENT REPOSITORIES (visible before repo loaded) ─── -->
     <app-recent-repos
       *ngIf="!repoStructure"
+      class="block relative z-10"
       [recentRepos]="recentRepos"
       [loading]="loading"
       [activeRepoUrl]="activeRecentUrl"
@@ -377,7 +489,7 @@
     </app-recent-repos>
 
     <!-- ── MOBILE WORKSPACE TABS (< lg only) ────────────────── -->
-    <div *ngIf="repoStructure" class="flex lg:hidden gap-1.5 p-1 rounded-xl mb-3 flex-shrink-0"
+    <div *ngIf="repoStructure" class="relative z-10 flex lg:hidden gap-1.5 p-1 rounded-xl mb-3 flex-shrink-0"
          style="background: var(--card); border: 1px solid var(--border);">
       <button
         type="button"
@@ -403,7 +515,7 @@
     </div>
 
     <!-- ── RESULTS SECTION ── -->
-    <div *ngIf="repoStructure" class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 lg:overflow-hidden animate-slide-up">
+    <div *ngIf="repoStructure" class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-0 lg:overflow-hidden animate-slide-up">
 
       <!-- ── TREE PANEL ── -->
       <div class="lg:col-span-4 card flex-col h-[58vh] min-h-[380px] lg:h-full overflow-hidden"
@@ -576,7 +688,9 @@
             <p class="text-sm font-semibold mb-1.5" style="color: var(--text)">Generating bundle…</p>
             <p class="text-xs max-w-xs" style="color: var(--muted); line-height: 1.6;">
               Extracting {{ selectedFileCount }} {{ selectedFileCount === 1 ? 'file' : 'files' }} from
-              <span class="font-mono" style="color: var(--text-secondary)">{{ branch || branchName }}</span>
+              <span class="font-mono" style="color: var(--text-secondary)">
+                {{ analyzedMode === 'commit' && analyzedCommitSha ? (analyzedCommitSha | slice:0:7) : (branch || branchName) }}
+              </span>
               and formatting your AI context.
             </p>
           </div>
