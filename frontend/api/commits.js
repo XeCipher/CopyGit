@@ -26,8 +26,9 @@ export default async function handler(req, res) {
   } = parseBody(req);
 
   const shaQuery = typeof rawShaQuery === 'string' ? rawShaQuery.trim() : '';
-  if (!repoUrl || (!branch && !shaQuery)) {
-    return res.status(400).json({ error: 'Missing repository URL or branch.', code: 'INVALID_REQ' });
+  const targetBranch = typeof branch === 'string' ? branch.trim() : '';
+  if (!repoUrl) {
+    return res.status(400).json({ error: 'Missing repository URL.', code: 'INVALID_REQ' });
   }
 
   const parsed = parseGitHubUrl(repoUrl);
@@ -84,9 +85,11 @@ export default async function handler(req, res) {
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(perPage, 10) || 30));
+    // Omit sha when branch isn't passed so GitHub defaults to the repository's default branch
+    const shaParam = targetBranch ? `sha=${encodeURIComponent(targetBranch)}&` : '';
 
     const commitsResp = await fetch(
-      `${baseRepoUrl}/commits?sha=${encodeURIComponent(branch)}&per_page=${limit}&page=${pageNum}`,
+      `${baseRepoUrl}/commits?${shaParam}per_page=${limit}&page=${pageNum}`,
       { headers }
     );
 

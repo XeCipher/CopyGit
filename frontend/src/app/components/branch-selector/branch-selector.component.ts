@@ -4,10 +4,14 @@ import {
   Output,
   EventEmitter,
   OnChanges,
+  OnDestroy,
   SimpleChanges,
   HostListener,
   ElementRef,
-  ViewChild
+  ViewChild,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,10 +22,13 @@ interface HighlightParts {
   after: string;
 }
 
+const BRANCH_PAGE_BATCH = 60;
+
 @Component({
   selector: 'app-branch-selector',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="relative w-full">
 
@@ -128,15 +135,17 @@ interface HighlightParts {
         </div>
 
         <!-- Branch list -->
-        <div #listContainer class="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
+        <div #listContainer
+             (scroll)="onListScroll($event)"
+             class="cg-dropdown-list relative flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
           <button
-            *ngFor="let branch of filteredBranches; let i = index; trackBy: trackByBranch"
+            *ngFor="let branch of visibleBranches; let i = index; trackBy: trackByBranch"
             type="button"
             role="option"
             [attr.data-branch-idx]="i"
             [attr.aria-selected]="branch === selectedBranch"
             (click)="selectBranch(branch)"
-            (mouseenter)="highlightedIndex = i"
+            (pointerenter)="onItemPointerEnter(i, $event)"
             class="cg-dropdown-item w-full text-left px-2.5 py-2.5 sm:py-2 rounded-lg flex items-center gap-2 min-w-0"
             [class.is-selected]="branch === selectedBranch"
             [class.is-highlighted]="i === highlightedIndex && branch !== selectedBranch">
@@ -151,7 +160,7 @@ interface HighlightParts {
                   style="font-family: 'JetBrains Mono', monospace;"
                   [style.color]="branch === selectedBranch ? 'var(--accent)' : 'var(--text)'"
                   [style.font-weight]="branch === selectedBranch ? '600' : '400'">
-              <ng-container *ngIf="getHighlightParts(branch) as parts; else plainBranch">
+              <ng-container *ngIf="hasSearchQuery && getHighlightParts(branch) as parts; else plainBranch">
                 {{ parts.before }}<mark class="cg-mark">{{ parts.match }}</mark>{{ parts.after }}
               </ng-container>
               <ng-template #plainBranch>{{ branch }}</ng-template>
@@ -170,16 +179,26 @@ interface HighlightParts {
             </svg>
           </button>
 
+          <!-- Progressive reveal fallback -->
+          <button
+            *ngIf="visibleBranches.length < filteredBranches.length"
+            type="button"
+            (click)="showMoreBranches($event)"
+            class="w-full py-2 px-3 rounded-lg text-xs font-medium text-center cg-hover-card"
+            style="color: var(--accent);">
+            Show more ({{ filteredBranches.length - visibleBranches.length }} remaining)
+          </button>
+
           <!-- Custom branch fallback when repository has more than the loaded pages -->
           <button
             *ngIf="showCustomOption"
             type="button"
             role="option"
-            [attr.data-branch-idx]="filteredBranches.length"
+            [attr.data-branch-idx]="visibleBranches.length"
             (click)="selectBranch(trimmedQuery)"
-            (mouseenter)="highlightedIndex = filteredBranches.length"
+            (pointerenter)="onItemPointerEnter(visibleBranches.length, $event)"
             class="cg-dropdown-item w-full text-left px-2.5 py-2.5 sm:py-2 rounded-lg flex items-center gap-2 min-w-0"
-            [class.is-highlighted]="highlightedIndex === filteredBranches.length">
+            [class.is-highlighted]="highlightedIndex === visibleBranches.length">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"
                  class="flex-shrink-0" style="color: var(--accent)">
               <polyline points="9 18 15 12 9 6"/>
@@ -209,7 +228,7 @@ interface HighlightParts {
     </div>
   `
 })
-export class BranchSelectorComponent implements OnChanges {
+export class BranchSelectorComponent implements OnChanges, OnDestroy {
   @Input() branches: string[] = [];
   @Input() selectedBranch = '';
   @Input() defaultBranch = '';
@@ -225,18 +244,31 @@ export class BranchSelectorComponent implements OnChanges {
 
   isOpen = false;
   searchQuery = '';
+  hasSearchQuery = false;
   filteredBranches: string[] = [];
+  visibleBranches: string[] = [];
   highlightedIndex = 0;
+  private displayLimit = BRANCH_PAGE_BATCH;
+  private rafId: number | null = null;
 
-  constructor(private elRef: ElementRef<HTMLElement>) {}
+  constructor(
+    private elRef: ElementRef<HTMLElement>,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
+  ) {}
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['branches']) {
       this.updateFiltered();
+      this.cdr.markForCheck();
     }
     if (changes['disabled'] && this.disabled && this.isOpen) {
       this.close();
     }
+  }
+
+  ngOnDestroy() {
+    this.cancelScheduledFocus();
   }
 
   @HostListener('document:click', ['$event'])
@@ -278,28 +310,33 @@ export class BranchSelectorComponent implements OnChanges {
     if (this.disabled || this.isOpen) return;
     this.isOpen = true;
     this.searchQuery = '';
+
+    const rawIdx = this.branches.indexOf(this.selectedBranch);
+    this.displayLimit = rawIdx >= BRANCH_PAGE_BATCH
+      ? Math.min(this.branches.length, rawIdx + 20)
+      : BRANCH_PAGE_BATCH;
+
     this.updateFiltered();
     const currentIdx = this.filteredBranches.indexOf(this.selectedBranch);
     this.highlightedIndex = currentIdx >= 0 ? currentIdx : 0;
     this.openChange.emit(true);
+    this.cdr.markForCheck();
 
-    setTimeout(() => {
-      // Avoid popping up the soft keyboard automatically on small touch screens
-      if (window.innerWidth >= 640) {
-        this.searchInput?.nativeElement?.focus();
-      }
-      this.scrollHighlightedIntoView();
-    }, 20);
+    this.scheduleFocusAndScroll(true);
   }
 
   close() {
     if (!this.isOpen) return;
+    this.cancelScheduledFocus();
     this.isOpen = false;
     this.searchQuery = '';
+    this.hasSearchQuery = false;
     this.openChange.emit(false);
+    this.cdr.markForCheck();
   }
 
   onSearchChange() {
+    this.displayLimit = BRANCH_PAGE_BATCH;
     this.updateFiltered();
     this.highlightedIndex = 0;
   }
@@ -318,19 +355,46 @@ export class BranchSelectorComponent implements OnChanges {
     }
   }
 
+  onItemPointerEnter(index: number, event: PointerEvent) {
+    if (event.pointerType === 'mouse' && this.highlightedIndex !== index) {
+      this.highlightedIndex = index;
+    }
+  }
+
+  onListScroll(event: Event) {
+    if (this.visibleBranches.length >= this.filteredBranches.length) return;
+    const container = event.target as HTMLElement | null;
+    if (!container) return;
+
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 120) {
+      this.displayLimit += BRANCH_PAGE_BATCH;
+      this.updateVisibleBranches();
+      this.cdr.markForCheck();
+    }
+  }
+
+  showMoreBranches(event: Event) {
+    event.stopPropagation();
+    this.displayLimit += BRANCH_PAGE_BATCH;
+    this.updateVisibleBranches();
+    this.cdr.markForCheck();
+  }
+
   onSearchKeydown(event: KeyboardEvent) {
     const totalOptions = this.filteredBranches.length + (this.showCustomOption ? 1 : 0);
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (totalOptions > 0) {
         this.highlightedIndex = (this.highlightedIndex + 1) % totalOptions;
-        this.scrollHighlightedIntoView();
+        this.ensureHighlightedVisible();
+        this.scheduleFocusAndScroll(false);
       }
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       if (totalOptions > 0) {
         this.highlightedIndex = (this.highlightedIndex - 1 + totalOptions) % totalOptions;
-        this.scrollHighlightedIntoView();
+        this.ensureHighlightedVisible();
+        this.scheduleFocusAndScroll(false);
       }
     } else if (event.key === 'Enter') {
       event.preventDefault();
@@ -363,19 +427,69 @@ export class BranchSelectorComponent implements OnChanges {
     return branch;
   }
 
+  private ensureHighlightedVisible() {
+    if (
+      this.highlightedIndex < this.filteredBranches.length &&
+      this.highlightedIndex >= this.visibleBranches.length
+    ) {
+      this.displayLimit = Math.max(this.displayLimit, this.highlightedIndex + 20);
+      this.updateVisibleBranches();
+    }
+  }
+
   private updateFiltered() {
     const q = this.trimmedQuery.toLowerCase();
-    if (!q) {
-      this.filteredBranches = [...this.branches];
-      return;
+    this.hasSearchQuery = q.length > 0;
+    this.filteredBranches = q
+      ? this.branches.filter(b => b.toLowerCase().includes(q))
+      : [...this.branches];
+    this.updateVisibleBranches();
+  }
+
+  private updateVisibleBranches() {
+    this.visibleBranches =
+      this.filteredBranches.length <= this.displayLimit
+        ? this.filteredBranches
+        : this.filteredBranches.slice(0, this.displayLimit);
+  }
+
+  private scheduleFocusAndScroll(shouldFocusInput: boolean) {
+    this.cancelScheduledFocus();
+    this.ngZone.runOutsideAngular(() => {
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        if (!this.isOpen) return;
+        // Avoid popping up the soft keyboard automatically on small touch screens
+        if (shouldFocusInput && window.innerWidth >= 640) {
+          this.searchInput?.nativeElement?.focus({ preventScroll: true });
+        }
+        this.scrollHighlightedIntoView();
+      });
+    });
+  }
+
+  private cancelScheduledFocus() {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
     }
-    this.filteredBranches = this.branches.filter(b => b.toLowerCase().includes(q));
   }
 
   private scrollHighlightedIntoView() {
     const container = this.listContainer?.nativeElement;
-    if (!container) return;
+    if (!container || this.highlightedIndex < 0) return;
     const el = container.querySelector<HTMLElement>(`[data-branch-idx="${this.highlightedIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    if (!el) return;
+
+    const elTop = el.offsetTop;
+    const elBottom = elTop + el.offsetHeight;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+
+    if (elTop < viewTop) {
+      container.scrollTop = Math.max(0, elTop - 4);
+    } else if (elBottom > viewBottom) {
+      container.scrollTop = elBottom - container.clientHeight + 4;
+    }
   }
 }

@@ -16,6 +16,23 @@ function hasNextPage(linkHeader) {
   return typeof linkHeader === 'string' && /rel=["']next["']/i.test(linkHeader);
 }
 
+function getLastPage(linkHeader) {
+  if (typeof linkHeader !== 'string') return null;
+  const segments = linkHeader.split(',');
+  for (const segment of segments) {
+    if (/rel=["']last["']/i.test(segment)) {
+      const pageMatch = segment.match(/[?&]page=(\d+)/i);
+      if (pageMatch) {
+        const pageNum = parseInt(pageMatch[1], 10);
+        if (Number.isFinite(pageNum) && pageNum >= 1) {
+          return pageNum;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export default async function handler(req, res) {
   setNoCacheHeaders(res);
   if (req.method !== 'POST') {
@@ -79,26 +96,53 @@ export default async function handler(req, res) {
         branches.push(...firstPage.map(b => b.name).filter(Boolean));
       }
 
-      let morePages = hasNextPage(branchesResp.headers.get('link'));
-      let currentPage = 2;
+      const firstLinkHeader = branchesResp.headers.get('link');
+      const morePages = hasNextPage(firstLinkHeader);
+      const lastPage = getLastPage(firstLinkHeader);
 
-      while (morePages && currentPage <= MAX_BRANCH_PAGES) {
-        const nextResp = await fetch(
-          `${baseRepoUrl}/branches?per_page=100&page=${currentPage}`,
-          { headers }
-        );
-        if (!nextResp.ok) break;
+      if (morePages && lastPage !== null && lastPage >= 2) {
+        // Fetch remaining pages up to MAX_BRANCH_PAGES concurrently
+        const targetLastPage = Math.min(lastPage, MAX_BRANCH_PAGES);
+        const pageRequests = [];
 
-        const nextData = await nextResp.json();
-        if (Array.isArray(nextData)) {
-          branches.push(...nextData.map(b => b.name).filter(Boolean));
+        for (let page = 2; page <= targetLastPage; page++) {
+          pageRequests.push(
+            fetch(`${baseRepoUrl}/branches?per_page=100&page=${page}`, { headers })
+              .then(resp => (resp.ok ? resp.json() : null))
+              .catch(() => null)
+          );
         }
 
-        morePages = hasNextPage(nextResp.headers.get('link'));
-        currentPage++;
-      }
+        const extraPages = await Promise.all(pageRequests);
+        for (const pageData of extraPages) {
+          if (Array.isArray(pageData)) {
+            branches.push(...pageData.map(b => b.name).filter(Boolean));
+          }
+        }
 
-      branchesTruncated = morePages;
+        branchesTruncated = lastPage > MAX_BRANCH_PAGES;
+      } else if (morePages) {
+        let hasMore = morePages;
+        let currentPage = 2;
+
+        while (hasMore && currentPage <= MAX_BRANCH_PAGES) {
+          const nextResp = await fetch(
+            `${baseRepoUrl}/branches?per_page=100&page=${currentPage}`,
+            { headers }
+          );
+          if (!nextResp.ok) break;
+
+          const nextData = await nextResp.json();
+          if (Array.isArray(nextData)) {
+            branches.push(...nextData.map(b => b.name).filter(Boolean));
+          }
+
+          hasMore = hasNextPage(nextResp.headers.get('link'));
+          currentPage++;
+        }
+
+        branchesTruncated = hasMore;
+      }
     }
 
     // Keep default branch first, then sort remaining branches naturally

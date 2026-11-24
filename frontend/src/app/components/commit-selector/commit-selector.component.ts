@@ -4,10 +4,14 @@ import {
   Output,
   EventEmitter,
   OnChanges,
+  OnDestroy,
   SimpleChanges,
   HostListener,
   ElementRef,
-  ViewChild
+  ViewChild,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  NgZone
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,10 +28,33 @@ interface HighlightParts {
   after: string;
 }
 
+const COMMIT_PAGE_BATCH = 40;
+const MAX_DATE_CACHE_SIZE = 500;
+
+const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit'
+});
+
+const fullDateFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'long',
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  second: '2-digit',
+  timeZoneName: 'long'
+});
+
 @Component({
   selector: 'app-commit-selector',
   standalone: true,
   imports: [CommonModule, FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="relative w-full">
 
@@ -153,7 +180,9 @@ interface HighlightParts {
         </div>
 
         <!-- Scrollable commit list -->
-        <div #listContainer class="flex-1 overflow-y-auto p-1.5 space-y-1 min-h-0">
+        <div #listContainer
+             (scroll)="onListScroll($event)"
+             class="cg-dropdown-list relative flex-1 overflow-y-auto p-1.5 space-y-1 min-h-0">
 
           <!-- Latest (HEAD) option -->
           <button
@@ -191,7 +220,7 @@ interface HighlightParts {
               <p *ngIf="headCommit && !headCommit.empty && headCommit.date"
                  class="text-[10.5px] mt-0.5"
                  style="color: var(--muted)">
-                {{ headCommit.author }} · {{ headCommit.date | date:'MMM d, yyyy, h:mm a' }}
+                {{ headCommit.author }} · {{ getShortDate(headCommit.date) }}
               </p>
             </div>
 
@@ -226,7 +255,7 @@ interface HighlightParts {
                 </span>
               </div>
               <p class="text-[10.5px] truncate mt-0.5" style="color: var(--muted)">
-                {{ pinnedCommitInfo.author }} · {{ pinnedCommitInfo.date | date:'MMM d, yyyy, h:mm a' }}
+                {{ pinnedCommitInfo.author }} · {{ getShortDate(pinnedCommitInfo.date) }}
               </p>
             </div>
 
@@ -272,23 +301,23 @@ interface HighlightParts {
 
           <!-- Commit list rows -->
           <button
-            *ngFor="let commit of filteredCommits; let i = index; trackBy: trackByCommit"
+            *ngFor="let commit of visibleCommits; let i = index; trackBy: trackByCommit"
             type="button"
             role="option"
             [attr.data-commit-idx]="i"
             [attr.aria-selected]="selectedCommitSha === commit.sha"
             (click)="selectCommit(commit)"
-            (mouseenter)="highlightedIndex = i"
+            (pointerenter)="onItemPointerEnter(i, $event)"
             class="cg-dropdown-item w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2.5 min-w-0"
             [class.is-selected]="selectedCommitSha === commit.sha"
             [class.is-highlighted]="i === highlightedIndex && selectedCommitSha !== commit.sha"
-            [title]="(commit.date | date:'EEEE, MMM d, yyyy, h:mm:ss a zzzz') || ''">
+            [title]="getFullDate(commit.date)">
 
             <span class="text-[11px] font-mono px-1.5 py-0.5 rounded flex-shrink-0 mt-0.5"
                   [style.background]="selectedCommitSha === commit.sha ? 'var(--accent-dim)' : 'var(--card)'"
                   [style.color]="selectedCommitSha === commit.sha ? 'var(--accent)' : 'var(--text-secondary)'"
                   style="border: 1px solid var(--border-subtle);">
-              <ng-container *ngIf="getHighlightParts(commit.sha.slice(0, 7)) as shaParts; else plainSha">
+              <ng-container *ngIf="hasSearchQuery && getHighlightParts(commit.sha.slice(0, 7)) as shaParts; else plainSha">
                 {{ shaParts.before }}<mark class="cg-mark">{{ shaParts.match }}</mark>{{ shaParts.after }}
               </ng-container>
               <ng-template #plainSha>{{ commit.sha | slice:0:7 }}</ng-template>
@@ -299,7 +328,7 @@ interface HighlightParts {
                 <span class="text-xs truncate flex-1 min-w-0"
                       [style.font-weight]="selectedCommitSha === commit.sha ? '600' : '500'"
                       [style.color]="selectedCommitSha === commit.sha ? 'var(--accent)' : 'var(--text)'">
-                  <ng-container *ngIf="getHighlightParts(commit.message) as msgParts; else plainMsg">
+                  <ng-container *ngIf="hasSearchQuery && getHighlightParts(commit.message) as msgParts; else plainMsg">
                     {{ msgParts.before }}<mark class="cg-mark">{{ msgParts.match }}</mark>{{ msgParts.after }}
                   </ng-container>
                   <ng-template #plainMsg>{{ commit.message }}</ng-template>
@@ -313,11 +342,11 @@ interface HighlightParts {
               </div>
 
               <div class="text-[11px] truncate mt-0.5" style="color: var(--muted)">
-                <ng-container *ngIf="getHighlightParts(commit.author) as authorParts; else plainAuthor">
+                <ng-container *ngIf="hasSearchQuery && getHighlightParts(commit.author) as authorParts; else plainAuthor">
                   {{ authorParts.before }}<mark class="cg-mark">{{ authorParts.match }}</mark>{{ authorParts.after }}
                 </ng-container>
                 <ng-template #plainAuthor>{{ commit.author }}</ng-template>
-                · {{ commit.date | date:'MMM d, yyyy, h:mm a' }}
+                · {{ getShortDate(commit.date) }}
               </div>
             </div>
 
@@ -325,6 +354,16 @@ interface HighlightParts {
                  class="flex-shrink-0 mt-1" style="color: var(--accent)">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
+          </button>
+
+          <!-- Progressive reveal for already-loaded commits -->
+          <button
+            *ngIf="visibleCommits.length < filteredCommits.length"
+            type="button"
+            (click)="showMoreCommits($event)"
+            class="w-full py-2 px-3 rounded-lg text-xs font-medium text-center cg-hover-card"
+            style="color: var(--accent);">
+            Show more ({{ filteredCommits.length - visibleCommits.length }} remaining)
           </button>
 
           <!-- Empty state -->
@@ -335,7 +374,7 @@ interface HighlightParts {
           </div>
 
           <!-- Pagination button -->
-          <div *ngIf="hasMore && !trimmedQuery" class="pt-1 pb-0.5">
+          <div *ngIf="hasMore && !trimmedQuery && visibleCommits.length === filteredCommits.length" class="pt-1 pb-0.5">
             <button
               type="button"
               (click)="onLoadMore($event)"
@@ -358,7 +397,7 @@ interface HighlightParts {
     </div>
   `
 })
-export class CommitSelectorComponent implements OnChanges {
+export class CommitSelectorComponent implements OnChanges, OnDestroy {
   @Input() commits: CommitInfo[] = [];
   @Input() selectedCommitSha = '';
   @Input() headCommit: CommitInfo | null = null;
@@ -381,19 +420,35 @@ export class CommitSelectorComponent implements OnChanges {
 
   isOpen = false;
   searchQuery = '';
+  hasSearchQuery = false;
   filteredCommits: CommitInfo[] = [];
+  visibleCommits: CommitInfo[] = [];
   highlightedIndex = -1;
   shaCandidate = '';
 
-  constructor(private elRef: ElementRef<HTMLElement>) {}
+  private displayLimit = COMMIT_PAGE_BATCH;
+  private rafId: number | null = null;
+  private shortDateCache = new Map<string, string>();
+  private fullDateCache = new Map<string, string>();
+
+  constructor(
+    private elRef: ElementRef<HTMLElement>,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
+  ) {}
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['commits']) {
       this.updateFiltered();
+      this.cdr.markForCheck();
     }
     if (changes['disabled'] && this.disabled && this.isOpen) {
       this.close();
     }
+  }
+
+  ngOnDestroy() {
+    this.cancelScheduledFocus();
   }
 
   @HostListener('document:click', ['$event'])
@@ -472,30 +527,38 @@ export class CommitSelectorComponent implements OnChanges {
     if (this.disabled || this.isOpen) return;
     this.isOpen = true;
     this.searchQuery = '';
+
+    const rawIdx = this.selectedCommitSha
+      ? this.commits.findIndex(c => c.sha === this.selectedCommitSha)
+      : -1;
+    this.displayLimit = rawIdx >= COMMIT_PAGE_BATCH
+      ? Math.min(this.commits.length, rawIdx + 15)
+      : COMMIT_PAGE_BATCH;
+
     this.updateFiltered();
     this.highlightedIndex = this.selectedCommitSha
       ? this.filteredCommits.findIndex(c => c.sha === this.selectedCommitSha)
       : -1;
     this.openChange.emit(true);
+    this.cdr.markForCheck();
 
-    setTimeout(() => {
-      if (window.innerWidth >= 640) {
-        this.searchInput?.nativeElement?.focus();
-      }
-      this.scrollHighlightedIntoView();
-    }, 20);
+    this.scheduleFocusAndScroll(true);
   }
 
   close() {
     if (!this.isOpen) return;
+    this.cancelScheduledFocus();
     this.isOpen = false;
     this.searchQuery = '';
+    this.hasSearchQuery = false;
     this.shaCandidate = '';
     this.openChange.emit(false);
+    this.cdr.markForCheck();
   }
 
   onSearchChange() {
     this.shaCandidate = this.extractShaCandidate(this.searchQuery);
+    this.displayLimit = COMMIT_PAGE_BATCH;
     this.updateFiltered();
     this.highlightedIndex = this.filteredCommits.length > 0 ? 0 : -1;
   }
@@ -534,19 +597,46 @@ export class CommitSelectorComponent implements OnChanges {
     }
   }
 
+  onItemPointerEnter(index: number, event: PointerEvent) {
+    if (event.pointerType === 'mouse' && this.highlightedIndex !== index) {
+      this.highlightedIndex = index;
+    }
+  }
+
+  onListScroll(event: Event) {
+    if (this.visibleCommits.length >= this.filteredCommits.length) return;
+    const container = event.target as HTMLElement | null;
+    if (!container) return;
+
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 120) {
+      this.displayLimit += COMMIT_PAGE_BATCH;
+      this.updateVisibleCommits();
+      this.cdr.markForCheck();
+    }
+  }
+
+  showMoreCommits(event: Event) {
+    event.stopPropagation();
+    this.displayLimit += COMMIT_PAGE_BATCH;
+    this.updateVisibleCommits();
+    this.cdr.markForCheck();
+  }
+
   onSearchKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (this.filteredCommits.length > 0) {
         this.highlightedIndex = (this.highlightedIndex + 1) % this.filteredCommits.length;
-        this.scrollHighlightedIntoView();
+        this.ensureHighlightedVisible();
+        this.scheduleFocusAndScroll(false);
       }
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       if (this.filteredCommits.length > 0) {
         this.highlightedIndex =
           this.highlightedIndex <= 0 ? this.filteredCommits.length - 1 : this.highlightedIndex - 1;
-        this.scrollHighlightedIntoView();
+        this.ensureHighlightedVisible();
+        this.scheduleFocusAndScroll(false);
       }
     } else if (event.key === 'Enter') {
       event.preventDefault();
@@ -562,6 +652,40 @@ export class CommitSelectorComponent implements OnChanges {
       event.stopPropagation();
       this.close();
     }
+  }
+
+  getShortDate(dateStr: string): string {
+    if (!dateStr) return '';
+    const cached = this.shortDateCache.get(dateStr);
+    if (cached !== undefined) return cached;
+
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const formatted = shortDateFormatter.format(date);
+    if (this.shortDateCache.size >= MAX_DATE_CACHE_SIZE) {
+      this.shortDateCache.clear();
+    }
+    this.shortDateCache.set(dateStr, formatted);
+    return formatted;
+  }
+
+  getFullDate(dateStr: string): string {
+    if (!dateStr || typeof window === 'undefined' || window.innerWidth < 640) {
+      return '';
+    }
+    const cached = this.fullDateCache.get(dateStr);
+    if (cached !== undefined) return cached;
+
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const formatted = fullDateFormatter.format(date);
+    if (this.fullDateCache.size >= MAX_DATE_CACHE_SIZE) {
+      this.fullDateCache.clear();
+    }
+    this.fullDateCache.set(dateStr, formatted);
+    return formatted;
   }
 
   getHighlightParts(text: string): HighlightParts | null {
@@ -589,20 +713,60 @@ export class CommitSelectorComponent implements OnChanges {
     return '';
   }
 
+  private ensureHighlightedVisible() {
+    if (
+      this.highlightedIndex >= 0 &&
+      this.highlightedIndex < this.filteredCommits.length &&
+      this.highlightedIndex >= this.visibleCommits.length
+    ) {
+      this.displayLimit = Math.max(this.displayLimit, this.highlightedIndex + 15);
+      this.updateVisibleCommits();
+    }
+  }
+
   private updateFiltered() {
     const q = this.trimmedQuery.toLowerCase();
+    this.hasSearchQuery = q.length > 0;
     if (!q) {
       this.filteredCommits = [...this.commits];
-      return;
+    } else {
+      const shaFilter = this.shaCandidate || q;
+      this.filteredCommits = this.commits.filter(
+        c =>
+          c.sha.toLowerCase().includes(shaFilter) ||
+          c.message.toLowerCase().includes(q) ||
+          c.author.toLowerCase().includes(q)
+      );
     }
+    this.updateVisibleCommits();
+  }
 
-    const shaFilter = this.shaCandidate || q;
-    this.filteredCommits = this.commits.filter(
-      c =>
-        c.sha.toLowerCase().includes(shaFilter) ||
-        c.message.toLowerCase().includes(q) ||
-        c.author.toLowerCase().includes(q)
-    );
+  private updateVisibleCommits() {
+    this.visibleCommits =
+      this.filteredCommits.length <= this.displayLimit
+        ? this.filteredCommits
+        : this.filteredCommits.slice(0, this.displayLimit);
+  }
+
+  private scheduleFocusAndScroll(shouldFocusInput: boolean) {
+    this.cancelScheduledFocus();
+    this.ngZone.runOutsideAngular(() => {
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        if (!this.isOpen) return;
+        if (shouldFocusInput && window.innerWidth >= 640) {
+          this.searchInput?.nativeElement?.focus({ preventScroll: true });
+        }
+        this.scrollHighlightedIntoView();
+      });
+    });
+  }
+
+  private cancelScheduledFocus() {
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   }
 
   private scrollHighlightedIntoView() {
@@ -610,6 +774,17 @@ export class CommitSelectorComponent implements OnChanges {
     const container = this.listContainer?.nativeElement;
     if (!container) return;
     const el = container.querySelector<HTMLElement>(`[data-commit-idx="${this.highlightedIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+    if (!el) return;
+
+    const elTop = el.offsetTop;
+    const elBottom = elTop + el.offsetHeight;
+    const viewTop = container.scrollTop;
+    const viewBottom = viewTop + container.clientHeight;
+
+    if (elTop < viewTop) {
+      container.scrollTop = Math.max(0, elTop - 4);
+    } else if (elBottom > viewBottom) {
+      container.scrollTop = elBottom - container.clientHeight + 4;
+    }
   }
 }

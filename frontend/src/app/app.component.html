@@ -3,10 +3,10 @@
 
   <!-- ── AMBIENT GLOW ─────────────────────────────────────── -->
   <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-    <div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full blur-[140px]"
+    <div class="absolute -top-44 left-1/2 -translate-x-1/2 w-[820px] h-[480px] rounded-full"
          style="background: radial-gradient(ellipse, rgba(109,89,240,0.07) 0%, transparent 70%);">
     </div>
-    <div class="absolute top-1/2 -right-20 w-[400px] h-[400px] rounded-full blur-[120px]"
+    <div class="absolute top-1/2 -right-24 w-[480px] h-[480px] rounded-full"
          style="background: radial-gradient(ellipse, rgba(139,110,245,0.04) 0%, transparent 70%);">
     </div>
   </div>
@@ -14,7 +14,7 @@
   <!-- ═══════════════════════════════════════════════════════
        HEADER
        ═══════════════════════════════════════════════════════ -->
-  <header class="sticky top-0 z-30 backdrop-blur-xl flex-shrink-0"
+  <header class="sticky top-0 z-30 flex-shrink-0"
           style="background: var(--bg); border-bottom: 1px solid var(--border-subtle);">
     <div class="max-w-7xl mx-auto px-4 sm:px-5 h-14 flex items-center justify-between">
 
@@ -129,7 +129,7 @@
             type="url"
             name="repoUrl"
             [(ngModel)]="repoUrl"
-            (input)="onUrlChange()"
+            (input)="onUrlChange($event)"
             (paste)="onUrlPaste()"
             (keydown.enter)="onUrlEnter()"
             placeholder="https://github.com/username/repository"
@@ -174,7 +174,7 @@
             </app-branch-selector>
           </div>
 
-          <!-- Commit selector (shown once repo info / branches load) -->
+          <!-- Commit selector (shown once repo info / branches start loading) -->
           <div *ngIf="showCommitSelector"
                class="relative flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none animate-fade-in"
                [ngClass]="commitDropdownOpen ? 'z-50' : 'z-10'">
@@ -189,7 +189,7 @@
               [hasMore]="commitsHasMore"
               [lookingUpSha]="lookingUpCommit"
               [lookupError]="commitLookupError"
-              [disabled]="!branchName || !!latestCommit?.empty"
+              [disabled]="(!branchName && commits.length === 0 && !fetchingCommits) || !!latestCommit?.empty"
               (commitSelected)="onCommitSelect($event)"
               (loadMore)="loadMoreCommits()"
               (lookupSha)="lookupCommitBySha($event)"
@@ -499,7 +499,7 @@
       <button
         type="button"
         (click)="mobileTab = 'files'"
-        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
         [style.background]="mobileTab === 'files' ? 'var(--surface-elevated)' : 'transparent'"
         [style.color]="mobileTab === 'files' ? 'var(--text)' : 'var(--muted)'"
         [style.boxShadow]="mobileTab === 'files' ? 'var(--shadow)' : 'none'">
@@ -509,7 +509,7 @@
       <button
         type="button"
         (click)="mobileTab = 'output'"
-        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+        class="flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
         [style.background]="mobileTab === 'output' ? 'var(--surface-elevated)' : 'transparent'"
         [style.color]="mobileTab === 'output' ? 'var(--text)' : 'var(--muted)'"
         [style.boxShadow]="mobileTab === 'output' ? 'var(--shadow)' : 'none'">
@@ -846,7 +846,7 @@
         />
         <button
           (click)="showTokenValue = !showTokenValue"
-          class="absolute right-3 top-1/2 -translate-y-1/2 cg-icon-btn transition-colors"
+          class="absolute right-3 top-1/2 -translate-y-1/2 cg-icon-btn"
           type="button"
           [attr.aria-label]="showTokenValue ? 'Hide token' : 'Show token'">
           <svg *ngIf="!showTokenValue" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
