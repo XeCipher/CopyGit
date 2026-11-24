@@ -115,8 +115,8 @@
     <section class="card p-3.5 sm:p-4 md:p-5 mb-4 flex-shrink-0 animate-fade-in relative"
              [ngClass]="anyDropdownOpen ? 'z-40' : 'z-20'">
 
-      <!-- Main input row -->
-      <div class="flex flex-col lg:flex-row gap-2.5 sm:gap-3">
+      <!-- Main input row (z-30 keeps dropdowns above sibling info/commit bars below) -->
+      <div class="flex flex-col lg:flex-row gap-2.5 sm:gap-3 relative z-30">
 
         <!-- URL Input -->
         <div class="flex-1 relative min-w-0">
@@ -157,7 +157,11 @@
         <div class="flex flex-wrap sm:flex-nowrap items-stretch gap-2.5 sm:gap-3">
 
           <!-- Searchable branch selector -->
-          <div [ngClass]="showCommitSelector ? 'flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none' : 'flex-1 min-w-0 sm:w-48 sm:flex-none'">
+          <div class="relative"
+               [ngClass]="[
+                 showCommitSelector ? 'flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none' : 'flex-1 min-w-0 sm:w-48 sm:flex-none',
+                 branchDropdownOpen ? 'z-50' : 'z-10'
+               ]">
             <app-branch-selector
               [branches]="branches"
               [selectedBranch]="branchName"
@@ -172,7 +176,8 @@
 
           <!-- Commit selector (shown once repo info / branches load) -->
           <div *ngIf="showCommitSelector"
-               class="flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none animate-fade-in">
+               class="relative flex-1 min-w-0 lg:w-44 xl:w-48 lg:flex-none animate-fade-in"
+               [ngClass]="commitDropdownOpen ? 'z-50' : 'z-10'">
             <app-commit-selector
               [commits]="commits"
               [selectedCommitSha]="selectedCommitSha"

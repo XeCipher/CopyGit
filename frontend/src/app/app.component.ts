@@ -322,6 +322,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.fetchingCommit = false;
     this.fetchingCommits = false;
     this.loadingMoreCommits = false;
+    this.branchDropdownOpen = false;
+    this.commitDropdownOpen = false;
 
     this.repoError = '';
     this.repoErrorMessage = '';
@@ -476,6 +478,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.repoErrorMessage = '';
     this.actionError = '';
     this.isPrivateDetected = false;
+    this.branchDropdownOpen = false;
+    this.commitDropdownOpen = false;
     this.latestCommit = null;
     this.fetchingBranches = false;
     this.fetchingCommit = false;
@@ -502,6 +506,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.repoErrorMessage = '';
     this.actionError = '';
     this.isPrivateDetected = false;
+    this.branchDropdownOpen = false;
+    this.commitDropdownOpen = false;
     this.repoInfo = null;
     this.branches = [];
     this.branchName = '';

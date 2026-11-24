@@ -70,7 +70,7 @@ interface HighlightParts {
       <div *ngIf="isOpen"
            role="listbox"
            aria-label="Branches"
-           class="cg-dropdown-panel fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl sm:absolute sm:bottom-auto sm:right-auto sm:left-0 sm:top-[calc(100%+6px)] sm:w-72 sm:rounded-xl flex flex-col max-h-[76dvh] sm:max-h-[340px] overflow-hidden">
+           class="cg-dropdown-panel fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl sm:absolute sm:bottom-auto sm:right-auto sm:left-0 sm:top-[calc(100%+6px)] sm:w-72 sm:rounded-xl flex flex-col max-h-[76dvh] sm:max-h-[min(340px,calc(100dvh_-_13rem))] overflow-hidden">
 
         <!-- Mobile sheet handle + title -->
         <div class="sm:hidden flex flex-col items-center pt-2 pb-1.5 px-4 flex-shrink-0"

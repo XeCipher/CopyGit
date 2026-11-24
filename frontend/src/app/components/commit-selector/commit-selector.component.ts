@@ -87,7 +87,7 @@ interface HighlightParts {
       <div *ngIf="isOpen"
            role="listbox"
            aria-label="Commits"
-           class="cg-dropdown-panel fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+6px)] sm:w-[390px] sm:rounded-xl flex flex-col max-h-[80dvh] sm:max-h-[420px] overflow-hidden">
+           class="cg-dropdown-panel fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+6px)] sm:w-[390px] sm:rounded-xl flex flex-col max-h-[80dvh] sm:max-h-[min(420px,calc(100dvh_-_13rem))] overflow-hidden">
 
         <!-- Mobile sheet handle + title -->
         <div class="sm:hidden flex flex-col items-center pt-2 pb-1.5 px-4 flex-shrink-0"
